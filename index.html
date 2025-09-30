@@ -93,6 +93,10 @@
       }catch(err){document.getElementById("authMsg").innerText=err.message;}
     }
 
+    // Damit die Buttons die Funktionen aufrufen können
+    window.registerUser = registerUser;
+    window.loginUser = loginUser;
+
     // --- Spiel Code ---
     const canvas=document.getElementById("game");
     const ctx=canvas.getContext("2d");
@@ -104,10 +108,7 @@
     const scoreEl=document.getElementById("score"),highscoreEl=document.getElementById("highscore");
     let highscore=0,wantJump=false,frame=0;
 
-    function resetGame(){
-      obstacles=[];spawnTimer=0;spawnInterval=90;baseSpeed=5;speed=baseSpeed;distance=0;score=0;
-      gameOver=false;player.y=ground.y-player.h;player.vy=0;player.grounded=true;
-    }
+    function resetGame(){obstacles=[];spawnTimer=0;spawnInterval=90;baseSpeed=5;speed=baseSpeed;distance=0;score=0;gameOver=false;player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
     function spawnObstacle(){let h=Math.random()*30+20,w=Math.random()*18+18;obstacles.push({x:W+20,y:ground.y-h,w,h,passed:false,color:'#2d3436'});}
     function collides(a,b){return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;}
 
@@ -116,51 +117,14 @@
     document.getElementById("pauseBtn").addEventListener("click",togglePause);
     function togglePause(){paused=!paused;document.getElementById("pauseBtn").innerText=paused?"Fortsetzen":"Pause";}
 
-    function update(){
-      if(paused||gameOver)return;
-      frame++;if(frame%300===0)baseSpeed+=0.3;speed=baseSpeed;
-      const gravity=0.7;if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}
-      player.vy+=gravity;player.y+=player.vy;
-      if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
-      spawnTimer++;if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;}
-      for(let i=obstacles.length-1;i>=0;i--){let ob=obstacles[i];ob.x-=speed;if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true;score+=10;}if(ob.x+ob.w<-50)obstacles.splice(i,1);if(collides(player,ob)){gameOver=true;saveScore();}}
-      scoreEl.textContent=Math.floor(score);
-    }
+    function update(){if(paused||gameOver)return;frame++;if(frame%300===0)baseSpeed+=0.3;speed=baseSpeed;const gravity=0.7;if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}player.vy+=gravity;player.y+=player.vy;if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}spawnTimer++;if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;}for(let i=obstacles.length-1;i>=0;i--){let ob=obstacles[i];ob.x-=speed;if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true;score+=10;}if(ob.x+ob.w<-50)obstacles.splice(i,1);if(collides(player,ob)){gameOver=true;saveScore();}}scoreEl.textContent=Math.floor(score);}
 
-    function draw(){
-      ctx.clearRect(0,0,W,H);
-      ctx.fillStyle="#4CAF50";ctx.fillRect(0,ground.y,W,ground.height);
-      for(const ob of obstacles){ctx.fillStyle=ob.color;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
-      ctx.fillStyle=player.color;ctx.fillRect(player.x,player.y,player.w,player.h);
-      if(gameOver){ctx.fillStyle="rgba(0,0,0,0.6)";ctx.fillRect(0,0,W,H);ctx.fillStyle="white";ctx.font="bold 36px system-ui";ctx.textAlign="center";ctx.fillText("Game Over",W/2,H/2);}
-    }
+    function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle="#4CAF50";ctx.fillRect(0,ground.y,W,ground.height);for(const ob of obstacles){ctx.fillStyle=ob.color;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}ctx.fillStyle=player.color;ctx.fillRect(player.x,player.y,player.w,player.h);if(gameOver){ctx.fillStyle="rgba(0,0,0,0.6)";ctx.fillRect(0,0,W,H);ctx.fillStyle="white";ctx.font="bold 36px system-ui";ctx.textAlign="center";ctx.fillText("Game Over",W/2,H/2);}}
 
     function loop(){if(!paused){update();}draw();if(!gameOver)requestAnimationFrame(loop);}
-    
-    async function saveScore(){
-      const s=Math.floor(score);
-      if(s>highscore){highscore=s;highscoreEl.textContent=highscore;await update(ref(db,"users/"+currentUser.uid),{highscore:s});}
-      updateLeaderboard();
-    }
-
-    async function updateLeaderboard(){
-      const q=query(ref(db,"users"),orderByChild("highscore"),limitToLast(10));
-      const snap=await get(q);
-      const scores=[];snap.forEach(c=>scores.push(c.val()));
-      scores.sort((a,b)=>b.highscore-a.highscore);
-      document.getElementById("leaderboard").innerHTML=scores.map(s=>s.username+": "+s.highscore).join("<br>");
-    }
-
-    function startGame(){
-      document.getElementById("authBox").style.display="none";
-      document.getElementById("gameWrap").style.display="flex";
-      resetGame();requestAnimationFrame(loop);updateLeaderboard();
-    }
-    // damit die Buttons im HTML sie aufrufen können
-window.registerUser = registerUser;
-window.loginUser = loginUser;
-
+    async function saveScore(){const s=Math.floor(score);if(s>highscore){highscore=s;highscoreEl.textContent=highscore;await update(ref(db,"users/"+currentUser.uid),{highscore:s});}updateLeaderboard();}
+    async function updateLeaderboard(){const q=query(ref(db,"users"),orderByChild("highscore"),limitToLast(10));const snap=await get(q);const scores=[];snap.forEach(c=>scores.push(c.val()));scores.sort((a,b)=>b.highscore-a.highscore);document.getElementById("leaderboard").innerHTML=scores.map(s=>s.username+": "+s.highscore).join("<br>");}
+    function startGame(){document.getElementById("authBox").style.display="none";document.getElementById("gameWrap").style.display="flex";resetGame();requestAnimationFrame(loop);updateLeaderboard();}
   </script>
 </body>
 </html>
-
