@@ -156,6 +156,10 @@
       document.getElementById("gameWrap").style.display="flex";
       resetGame();requestAnimationFrame(loop);updateLeaderboard();
     }
+    // damit die Buttons im HTML sie aufrufen können
+window.registerUser = registerUser;
+window.loginUser = loginUser;
+
   </script>
 </body>
 </html>
