@@ -42,7 +42,6 @@
     import { getDatabase, ref, set, update, get } 
       from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
-    // === Firebase Config (deine Daten!) ===
     const firebaseConfig = {
       apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
       authDomain: "jumpandrunhighscore.firebaseapp.com",
@@ -60,6 +59,7 @@
 
     let currentUser = null;
     let currentUsername = null;
+    let gameLoopId = null;
 
     const msg = document.getElementById("authMessage");
     const scoreEl = document.getElementById("score");
@@ -70,6 +70,7 @@
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
       const username = document.getElementById("username").value;
+      if(!username) { msg.style.color="red"; msg.textContent="Bitte Benutzernamen eingeben"; return; }
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
@@ -126,7 +127,6 @@
         leaderboardEl.innerHTML = top.map(u =>
           (u.username === currentUsername ? `<b>${u.username}: ${u.highscore || 0}</b>` : `${u.username}: ${u.highscore || 0}`)
         ).join("<br>");
-        console.log("Leaderboard geladen:", top);
       } catch(e){
         console.error("Fehler Leaderboard:", e);
         leaderboardEl.innerHTML = "⚠️ Fehler beim Laden";
@@ -140,6 +140,7 @@
     let player, ground, obstacles, speed, score, highscore, gameOver;
 
     function startGame(savedHS){
+      if(gameLoopId) cancelAnimationFrame(gameLoopId);
       player = {x:100,y:0,w:40,h:50,vy:0,jumpPower:-12,grounded:false};
       ground = {y:canvas.height-60,height:60};
       obstacles = [];
@@ -149,7 +150,7 @@
       highscoreEl.textContent = highscore;
       gameOver=false;
       player.y = ground.y - player.h;
-      requestAnimationFrame(loop);
+      gameLoopId = requestAnimationFrame(loop);
     }
 
     function spawnObstacle(){
@@ -165,21 +166,17 @@
 
     function update(){
       if(gameOver) return;
-      // Gravitation & Sprung
       player.vy += 0.6;
       player.y += player.vy;
       if(player.y+player.h >= ground.y){ player.y=ground.y-player.h; player.vy=0; player.grounded=true; }
-      // Hindernisse
       if(Math.random()<0.02) spawnObstacle();
       obstacles.forEach(o=> o.x -= speed);
-      // Kollision
       for(const o of obstacles){
         if(collides(player,o)){ 
           gameOver=true; 
           saveHighscore(); 
         }
       }
-      // Score
       score+=0.1;
       scoreEl.textContent = Math.floor(score);
     }
@@ -190,18 +187,21 @@
       ctx.fillStyle="red"; ctx.fillRect(player.x,player.y,player.w,player.h);
       ctx.fillStyle="black";
       obstacles.forEach(o=> ctx.fillRect(o.x,o.y,o.w,o.h));
-      if(gameOver){ ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle="white"; ctx.font="30px sans-serif"; ctx.fillText("Game Over", canvas.width/2-80, canvas.height/2);
+      if(gameOver){ 
+        ctx.fillStyle="rgba(0,0,0,0.5)"; 
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle="white"; 
+        ctx.font="30px sans-serif"; 
+        ctx.fillText("Game Over", canvas.width/2-80, canvas.height/2);
       }
     }
 
     function loop(){
       update();
       draw();
-      if(!gameOver) requestAnimationFrame(loop);
+      if(!gameOver) gameLoopId = requestAnimationFrame(loop);
     }
 
-    // Steuerung
     window.addEventListener("keydown", e=>{
       if(e.code==="Space" && player.grounded){ player.vy=player.jumpPower; player.grounded=false; }
     });
@@ -220,5 +220,6 @@
   </script>
 </body>
 </html>
+
 
 
