@@ -9,9 +9,10 @@
     .hud { margin-top:10px; display:flex; gap:10px; }
     .panel { background:#fff9; padding:6px 10px; border-radius:6px; font-weight:bold; }
     #authSection { margin-top:20px; padding:10px; background:#fff9; border-radius:10px; }
-    #authSection input { display:block; margin:5px 0; padding:6px; }
+    #authSection input { display:block; margin:5px 0; padding:6px; width: 95%; }
     #authMessage { margin-top:8px; font-weight:bold; }
     #leaderboard { margin-top:20px; background:#fff9; padding:10px; border-radius:10px; min-width:200px; }
+    button { padding:6px 10px; margin-top:5px; width: 100%; font-weight:bold; border-radius:6px; cursor:pointer; }
   </style>
 </head>
 <body>
@@ -36,7 +37,6 @@
   <div id="leaderboard"><i>Leaderboard lädt…</i></div>
 
   <script type="module">
-    // Firebase SDKs importieren
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
@@ -44,7 +44,6 @@
     import { getDatabase, ref, set, update, get } 
       from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
-    // Firebase Konfiguration
     const firebaseConfig = {
       apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
       authDomain: "jumpandrunhighscore.firebaseapp.com",
@@ -56,7 +55,6 @@
       measurementId: "G-SJD78YNJK0"
     };
 
-    // Firebase initialisieren
     const app = initializeApp(firebaseConfig);
     const analytics = getAnalytics(app);
     const auth = getAuth(app);
@@ -115,8 +113,17 @@
       }
     }
 
-    document.getElementById("registerBtn").addEventListener("click", registerUser);
-    document.getElementById("loginBtn").addEventListener("click", loginUser);
+    // === Buttons für iPad/Desktop ===
+    document.addEventListener("DOMContentLoaded", () => {
+      const registerBtn = document.getElementById("registerBtn");
+      const loginBtn = document.getElementById("loginBtn");
+
+      registerBtn.addEventListener("click", registerUser);
+      registerBtn.addEventListener("touchend", registerUser);
+
+      loginBtn.addEventListener("click", loginUser);
+      loginBtn.addEventListener("touchend", loginUser);
+    });
 
     // === Leaderboard ===
     async function updateLeaderboard(){
@@ -225,6 +232,7 @@
   </script>
 </body>
 </html>
+
 
 
 
