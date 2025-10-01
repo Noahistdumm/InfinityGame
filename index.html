@@ -36,12 +36,15 @@
   <div id="leaderboard"><i>Leaderboard lädt…</i></div>
 
   <script type="module">
+    // Firebase SDKs importieren
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
       from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
     import { getDatabase, ref, set, update, get } 
       from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
+    // Firebase Konfiguration
     const firebaseConfig = {
       apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
       authDomain: "jumpandrunhighscore.firebaseapp.com",
@@ -53,7 +56,9 @@
       measurementId: "G-SJD78YNJK0"
     };
 
+    // Firebase initialisieren
     const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
     const auth = getAuth(app);
     const db = getDatabase(app);
 
@@ -70,7 +75,7 @@
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
       const username = document.getElementById("username").value;
-      if(!username) { msg.style.color="red"; msg.textContent="Bitte Benutzernamen eingeben"; return; }
+      if(!username){ msg.style.color="red"; msg.textContent="Bitte Benutzernamen eingeben"; return; }
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
@@ -220,6 +225,7 @@
   </script>
 </body>
 </html>
+
 
 
 
