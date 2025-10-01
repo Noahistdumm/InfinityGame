@@ -1,212 +1,219 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Unendliches Jump & Run</title>
-  <style>
-    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    html,body{height:100%;margin:0;background:#87CEEB;}
-    #gameWrap{display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center}
-    canvas{background:linear-gradient(#87CEEB,#6FC3F0);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
-    .hud{position:relative;margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
-    .panel{background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-weight:600}
-    .controls{font-size:13px;color:#333}
-    button{padding:8px 12px;border-radius:8px;border:0;background:#1f8ef1;color:white;font-weight:700;cursor:pointer}
-    #authPanel{margin-top:20px;display:flex;gap:10px;flex-direction:column;align-items:center}
-    #leaderboard{margin-top:20px;background:white;padding:12px;border-radius:8px;width:300px;max-height:250px;overflow:auto}
-    #leaderboard h3{text-align:center;margin:0 0 10px}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unendliches Jump & Run</title>
+<style>
+  body, html{margin:0; padding:0; font-family: system-ui, sans-serif; background:#87CEEB;}
+  #gameWrap{display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh;}
+  canvas{background:linear-gradient(#87CEEB,#6FC3F0); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15);}
+  .hud{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:12px;}
+  .panel{background:rgba(255,255,255,0.9); padding:8px 12px; border-radius:8px; font-weight:600;}
+  .controls{font-size:13px; color:#333;}
+  button{padding:8px 12px; border-radius:8px; border:0; background:#1f8ef1; color:white; font-weight:700; cursor:pointer;}
+  #authPanel{margin-top:20px; display:flex; flex-direction:column; gap:8px; align-items:center;}
+  #leaderboard{margin-top:20px; background:white; padding:12px; border-radius:8px; width:300px; max-height:250px; overflow:auto;}
+  #leaderboard h3{text-align:center; margin:0 0 10px;}
+</style>
 </head>
 <body>
-  <div id="gameWrap">
-    <canvas id="game" width="900" height="420"></canvas>
 
-    <div class="hud">
-      <div class="panel">Score: <span id="score">0</span></div>
-      <div class="panel">Highscore: <span id="highscore">0</span></div>
-      <div class="panel">User: <span id="currentUser">Gast</span></div>
-      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen • R zum Neustart</div>
-      <button id="pauseBtn">Pause</button>
-    </div>
+<div id="gameWrap">
+  <canvas id="game" width="900" height="420"></canvas>
 
-    <div id="authPanel">
-      <input id="email" type="email" placeholder="E-Mail">
-      <input id="password" type="password" placeholder="Passwort">
-      <div>
-        <button id="registerBtn">Registrieren</button>
-        <button id="loginBtn">Login</button>
-        <button id="logoutBtn" style="display:none;">Logout</button>
-      </div>
-    </div>
+  <div class="hud">
+    <div class="panel">Score: <span id="score">0</span></div>
+    <div class="panel">Highscore: <span id="highscore">0</span></div>
+    <div class="panel">User: <span id="currentUser">Gast</span></div>
+    <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen • R zum Neustart</div>
+    <button id="pauseBtn">Pause</button>
+  </div>
 
-    <div id="leaderboard">
-      <h3>Leaderboard</h3>
-      <ul id="leaderboardList"><li>Lädt...</li></ul>
+  <div id="authPanel">
+    <input type="email" id="email" placeholder="E-Mail">
+    <input type="password" id="password" placeholder="Passwort">
+    <div>
+      <button id="registerBtn">Registrieren</button>
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn" style="display:none;">Logout</button>
     </div>
   </div>
 
-  <!-- Firebase Scripts -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <div id="leaderboard">
+    <h3>Leaderboard</h3>
+    <ul id="leaderboardList"><li>Lädt...</li></ul>
+  </div>
+</div>
 
-  <script>
-    // Firebase initialisieren
-    const firebaseConfig = {
-      apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
-      authDomain: "jumpandrunhighscore.firebaseapp.com",
-      databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "jumpandrunhighscore",
-      storageBucket: "jumpandrunhighscore.firebasestorage.app",
-      messagingSenderId: "770421489723",
-      appId: "1:770421489723:web:8bc433474dae3d7d5edc1e"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
+<!-- Firebase Scripts -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
 
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const registerBtn = document.getElementById("registerBtn");
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const leaderboardList = document.getElementById("leaderboardList");
-    const currentUserEl = document.getElementById("currentUser");
-    const highscoreEl = document.getElementById("highscore");
+<script>
+  // Firebase konfigurieren
+  const firebaseConfig = {
+    apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
+    authDomain: "jumpandrunhighscore.firebaseapp.com",
+    databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "jumpandrunhighscore",
+    storageBucket: "jumpandrunhighscore.firebasestorage.app",
+    messagingSenderId: "770421489723",
+    appId: "1:770421489723:web:8bc433474dae3d7d5edc1e"
+  };
 
-    let currentUser = null;
-    let playerName = null;
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
 
-    // Registrierung
-    function registerUser(){
-      const email = emailInput.value;
-      const pass = passwordInput.value;
-      auth.createUserWithEmailAndPassword(email, pass)
-        .then(cred => {
-          currentUser = cred.user;
-          playerName = email.split("@")[0];
-          db.ref("users/" + currentUser.uid).set({username: playerName, highscore:0});
-          alert("Registrierung erfolgreich!");
-        })
-        .catch(err => alert(err.message));
-    }
+  // Elemente
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  const registerBtn = document.getElementById("registerBtn");
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const currentUserEl = document.getElementById("currentUser");
+  const highscoreEl = document.getElementById("highscore");
+  const leaderboardList = document.getElementById("leaderboardList");
 
-    // Login
-    function loginUser(){
-      const email = emailInput.value;
-      const pass = passwordInput.value;
-      auth.signInWithEmailAndPassword(email, pass)
-        .then(cred => {
-          currentUser = cred.user;
-          db.ref("users/" + currentUser.uid).once('value').then(snap=>{
-            if(snap.exists()) playerName = snap.val().username;
-            currentUserEl.textContent = playerName;
-            highscoreEl.textContent = snap.val().highscore || 0;
-          });
-          alert("Login erfolgreich!");
-        })
-        .catch(err => alert(err.message));
-    }
+  let currentUser = null;
+  let playerName = null;
 
-    function logoutUser(){
-      auth.signOut();
-    }
+  // Registrierung
+  function registerUser(){
+    const email = emailInput.value;
+    const pass = passwordInput.value;
+    if(!email || !pass){ alert("Bitte E-Mail und Passwort eingeben!"); return; }
+    auth.createUserWithEmailAndPassword(email, pass)
+      .then(cred=>{
+        currentUser = cred.user;
+        playerName = email.split("@")[0];
+        db.ref("users/" + currentUser.uid).set({username: playerName, highscore:0});
+        alert("Registrierung erfolgreich!");
+      })
+      .catch(err=>alert(err.message));
+  }
 
-    auth.onAuthStateChanged(user=>{
-      if(user){
-        currentUser = user;
+  // Login
+  function loginUser(){
+    const email = emailInput.value;
+    const pass = passwordInput.value;
+    if(!email || !pass){ alert("Bitte E-Mail und Passwort eingeben!"); return; }
+    auth.signInWithEmailAndPassword(email, pass)
+      .then(cred=>{
+        currentUser = cred.user;
         db.ref("users/" + currentUser.uid).once('value').then(snap=>{
           if(snap.exists()) playerName = snap.val().username;
           currentUserEl.textContent = playerName;
           highscoreEl.textContent = snap.val().highscore || 0;
         });
-        logoutBtn.style.display="inline-block";
-        loginBtn.style.display="none";
-        registerBtn.style.display="none";
-      } else {
-        currentUser=null;
-        playerName=null;
-        currentUserEl.textContent="Gast";
-        logoutBtn.style.display="none";
-        loginBtn.style.display="inline-block";
-        registerBtn.style.display="inline-block";
-        highscoreEl.textContent=0;
-      }
-    });
+      })
+      .catch(err=>alert(err.message));
+  }
 
-    // Buttons Touch + Click
-    registerBtn.addEventListener("click", registerUser);
-    registerBtn.addEventListener("touchstart", registerUser);
-    loginBtn.addEventListener("click", loginUser);
-    loginBtn.addEventListener("touchstart", loginUser);
-    logoutBtn.addEventListener("click", logoutUser);
-    logoutBtn.addEventListener("touchstart", logoutUser);
+  // Logout
+  function logoutUser(){
+    auth.signOut();
+  }
 
-    // Leaderboard live
-    function setupLiveLeaderboard(){
-      const lbRef = db.ref("users");
-      lbRef.on("value", snapshot=>{
-        leaderboardList.innerHTML="";
-        let users=[];
-        snapshot.forEach(child=>users.push(child.val()));
-        users.sort((a,b)=>b.highscore-a.highscore);
-        users.slice(0,10).forEach((u,i)=>{
-          const li = document.createElement("li");
-          li.textContent=`${i+1}. ${u.username}: ${u.highscore}`;
-          if(currentUser && u.username===playerName) li.style.fontWeight="bold";
-          leaderboardList.appendChild(li);
-        });
+  // Auth State
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      currentUser = user;
+      db.ref("users/" + currentUser.uid).once('value').then(snap=>{
+        if(snap.exists()) playerName = snap.val().username;
+        currentUserEl.textContent = playerName;
+        highscoreEl.textContent = snap.val().highscore || 0;
       });
+      logoutBtn.style.display="inline-block";
+      loginBtn.style.display="none";
+      registerBtn.style.display="none";
+    } else {
+      currentUser = null;
+      playerName = null;
+      currentUserEl.textContent="Gast";
+      logoutBtn.style.display="none";
+      loginBtn.style.display="inline-block";
+      registerBtn.style.display="inline-block";
+      highscoreEl.textContent=0;
     }
-    setupLiveLeaderboard();
+  });
 
-    // ---------------- SPIEL -----------------
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    let W = canvas.width, H = canvas.height;
+  // Buttons Touch + Click
+  registerBtn.addEventListener("click", registerUser);
+  registerBtn.addEventListener("touchstart", registerUser);
+  loginBtn.addEventListener("click", loginUser);
+  loginBtn.addEventListener("touchstart", loginUser);
+  logoutBtn.addEventListener("click", logoutUser);
+  logoutBtn.addEventListener("touchstart", logoutUser);
 
-    const player={x:120,y:0,w:44,h:60,vy:0,jumpPower:-13,grounded:false,color:'#ff6b6b'};
-    const ground={y:H-80,height:80};
-    let obstacles=[],spawnTimer=0,spawnInterval=90,baseSpeed=5,speed=baseSpeed,frame=0,score=0;
-    const scoreEl=document.getElementById('score');
-    let gameOver=false,paused=false,wantJump=false;
+  // Leaderboard
+  function setupLiveLeaderboard(){
+    const lbRef = db.ref("users");
+    lbRef.on("value", snapshot=>{
+      leaderboardList.innerHTML="";
+      let users=[];
+      snapshot.forEach(child=>users.push(child.val()));
+      users.sort((a,b)=>b.highscore-a.highscore);
+      users.slice(0,10).forEach((u,i)=>{
+        const li = document.createElement("li");
+        li.textContent = `${i+1}. ${u.username}: ${u.highscore}`;
+        if(currentUser && u.username===playerName) li.style.fontWeight="bold";
+        leaderboardList.appendChild(li);
+      });
+    });
+  }
+  setupLiveLeaderboard();
 
-    function resetGame(){obstacles=[];spawnTimer=0;spawnInterval=90;baseSpeed=5;speed=baseSpeed;frame=0;score=0;gameOver=false;player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
-    resetGame();
+  // ---------------- SPIEL -----------------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width, H = canvas.height;
+  const player={x:120,y:0,w:44,h:60,vy:0,jumpPower:-13,grounded:false,color:'#ff6b6b'};
+  const ground={y:H-80,height:80};
+  let obstacles=[],spawnTimer=0,spawnInterval=90,baseSpeed=5,speed=baseSpeed,frame=0,score=0;
+  const scoreEl=document.getElementById('score');
+  let gameOver=false,paused=false,wantJump=false;
 
-    function spawnObstacle(){const h=Math.round(Math.random()*30+20);const w=Math.round(Math.random()*20+20);const y=ground.y-h;obstacles.push({x:W+20,y,w,h,passed:false,color:'#2d3436'});}
-    function collides(a,b){const buffer=6;return a.x+buffer<b.x+b.w&&a.x+a.w-buffer>b.x&&a.y+buffer<b.y+b.h&&a.y+a.h-buffer>b.y;}
+  function resetGame(){obstacles=[];spawnTimer=0;spawnInterval=90;baseSpeed=5;speed=baseSpeed;frame=0;score=0;gameOver=false;player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
+  resetGame();
 
-    window.addEventListener('keydown', e=>{if(e.code==='Space'){wantJump=true;}if(e.key==='r'&&gameOver)resetGame();if(e.key==='p')togglePause();});
-    canvas.addEventListener('mousedown',()=>{wantJump=true;setTimeout(()=>wantJump=false,100);});
-    canvas.addEventListener('touchstart',()=>{wantJump=true;setTimeout(()=>wantJump=false,150);});
-    document.getElementById('pauseBtn').addEventListener('click',()=>{paused=!paused; document.getElementById('pauseBtn').textContent=paused?'Fortsetzen':'Pause';});
+  function spawnObstacle(){const h=Math.round(Math.random()*30+20);const w=Math.round(Math.random()*20+20);const y=ground.y-h;obstacles.push({x:W+20,y,w,h,passed:false,color:'#2d3436'});}
+  function collides(a,b){const buffer=6;return a.x+buffer<b.x+b.w&&a.x+a.w-buffer>b.x&&a.y+buffer<b.y+b.h&&a.y+a.h-buffer>b.y;}
 
-    function saveHighscore(){const s=Math.floor(score);if(currentUser){db.ref("users/"+currentUser.uid).update({highscore:s}); highscoreEl.textContent=s;}}
+  window.addEventListener('keydown', e=>{if(e.code==='Space'){wantJump=true;}if(e.key==='r'&&gameOver)resetGame();if(e.key==='p')paused=!paused;});
+  canvas.addEventListener('mousedown',()=>{wantJump=true;setTimeout(()=>wantJump=false,100);});
+  canvas.addEventListener('touchstart',()=>{wantJump=true;setTimeout(()=>wantJump=false,150);});
+  document.getElementById('pauseBtn').addEventListener('click',()=>{paused=!paused; document.getElementById('pauseBtn').textContent=paused?'Fortsetzen':'Pause';});
 
-    function update(){
-      if(paused||gameOver)return;
-      frame++;
-      if(frame%300===0) baseSpeed+=0.3;
-      speed=baseSpeed;
-      if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}
-      player.vy+=0.7; player.y+=player.vy;
-      if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
-      spawnTimer++; if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;}
-      for(let i=obstacles.length-1;i>=0;i--){const ob=obstacles[i];ob.x-=speed;if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true;score+=10;}if(ob.x+ob.w<-50)obstacles.splice(i,1);if(collides(player,ob)){gameOver=true;saveHighscore();}}
-      scoreEl.textContent=Math.floor(score);
-    }
+  function saveHighscore(){const s=Math.floor(score);if(currentUser){db.ref("users/"+currentUser.uid).update({highscore:s}); highscoreEl.textContent=s;}}
 
-    function draw(){
-      ctx.clearRect(0,0,W,H);
-      ctx.fillStyle='#4CAF50'; ctx.fillRect(0,ground.y,W,ground.height);
-      ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
-      for(const ob of obstacles){ctx.fillStyle=ob.color; ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
-      if(gameOver){ctx.fillStyle='black';ctx.font='24px Arial';ctx.fillText("Game Over - R zum Neustart",W/2-140,H/2);}
-    }
+  function update(){
+    if(paused||gameOver) return;
+    frame++;
+    if(frame%300===0) baseSpeed+=0.3;
+    speed=baseSpeed;
+    if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}
+    player.vy+=0.7; player.y+=player.vy;
+    if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
+    spawnTimer++; if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;}
+    for(let i=obstacles.length-1;i>=0;i--){const ob=obstacles[i];ob.x-=speed;if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true;score+=10;}if(ob.x+ob.w<-50)obstacles.splice(i,1);if(collides(player,ob)){gameOver=true;saveHighscore();}}
+    scoreEl.textContent=Math.floor(score);
+  }
 
-    function loop(){update();draw();requestAnimationFrame(loop);} loop();
-  </script>
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#4CAF50'; ctx.fillRect(0,ground.y,W,ground.height);
+    ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
+    for(const ob of obstacles){ctx.fillStyle=ob.color; ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
+    if(gameOver){ctx.fillStyle='black';ctx.font='24px Arial';ctx.fillText("Game Over - R zum Neustart",W/2-140,H/2);}
+  }
+
+  function loop(){update();draw();requestAnimationFrame(loop);}
+  loop();
+</script>
+
 </body>
 </html>
+
