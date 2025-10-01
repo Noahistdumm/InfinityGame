@@ -3,337 +3,255 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Jump and Block</title>
+  <title>Unendliches Jump & Run</title>
   <style>
     :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
     html,body{height:100%;margin:0;background:#87CEEB;}
     #gameWrap{display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center}
     canvas{background:linear-gradient(#87CEEB,#6FC3F0);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
-    .hud{position:relative;margin-top:12px;display:flex;gap:12px;align-items:center}
+    .hud{position:relative;margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
     .panel{background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-weight:600}
     .controls{font-size:13px;color:#333}
     button{padding:8px 12px;border-radius:8px;border:0;background:#1f8ef1;color:white;font-weight:700;cursor:pointer}
-    #authBox{margin:12px;background:white;padding:12px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);}
-    #leaderboardBox{margin-top:20px;background:white;padding:12px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.2);}
-    input{display:block;margin:6px 0;padding:8px;border-radius:6px;border:1px solid #ccc;width:240px}
-    #msg{min-height:22px;margin-top:6px}
+    #authPanel{margin-top:20px;display:flex;gap:10px;flex-direction:column;align-items:center}
+    #leaderboard{margin-top:20px;background:white;padding:12px;border-radius:8px;width:300px;max-height:250px;overflow:auto}
+    #leaderboard h3{text-align:center;margin:0 0 10px}
   </style>
 </head>
 <body>
-  <div id="gameWrap" style="align-items:center;">
-    <canvas id="game" width="900" height="420" style="display:none;"></canvas>
+  <div id="gameWrap">
+    <canvas id="game" width="900" height="420"></canvas>
 
-    <div class="hud" id="hud" style="display:none;">
+    <div class="hud">
       <div class="panel">Score: <span id="score">0</span></div>
       <div class="panel">Highscore: <span id="highscore">0</span></div>
-      <div class="controls">Tasten: Leertaste / Klick / Tippen = Springen • R = Neustart</div>
+      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen • R zum Neustart</div>
       <button id="pauseBtn">Pause</button>
     </div>
 
-    <!-- Login / Registrierung -->
-    <div id="authBox">
-      <h3>Login / Registrierung</h3>
-      <input id="username" placeholder="Username (bei Registrierung)">
-      <input id="email" placeholder="E-Mail">
+    <div id="authPanel">
+      <input id="username" placeholder="Benutzername">
       <input id="password" type="password" placeholder="Passwort">
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
+      <div>
         <button id="registerBtn">Registrieren</button>
         <button id="loginBtn">Login</button>
+        <button id="logoutBtn" style="display:none;">Logout</button>
       </div>
-      <div id="msg"></div>
     </div>
 
-    <!-- Leaderboard -->
-    <div id="leaderboardBox" style="display:none;width:320px;text-align:center">
-      <h3>Leaderboard (Top 10)</h3>
-      <div id="leaderboard">Lädt...</div>
+    <div id="leaderboard">
+      <h3>Leaderboard</h3>
+      <ul id="leaderboardList"><li>Lädt...</li></ul>
     </div>
   </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-  import { getDatabase, ref, set, get, update } 
-    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  // --- Firebase Config (deine) ---
-  const firebaseConfig = {
-    apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
-    authDomain: "jumpandrunhighscore.firebaseapp.com",
-    databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "jumpandrunhighscore",
-    storageBucket: "jumpandrunhighscore.firebasestorage.app",
-    messagingSenderId: "770421489723",
-    appId: "1:770421489723:web:8bc433474dae3d7d5edc1e"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
+      authDomain: "jumpandrunhighscore.firebaseapp.com",
+      databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "jumpandrunhighscore",
+      storageBucket: "jumpandrunhighscore.firebasestorage.app",
+      messagingSenderId: "770421489723",
+      appId: "1:770421489723:web:8bc433474dae3d7d5edc1e"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getDatabase(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
 
-  // Elemente
-  const registerBtn = document.getElementById('registerBtn');
-  const loginBtn = document.getElementById('loginBtn');
-  const msg = document.getElementById('msg');
-  const authBox = document.getElementById('authBox');
-  const canvas = document.getElementById('game');
-  const hud = document.getElementById('hud');
-  const leaderboardBox = document.getElementById('leaderboardBox');
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const registerBtn = document.getElementById("registerBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const leaderboardList = document.getElementById("leaderboardList");
 
-  let currentUser = null;
-  let currentUsername = null;
+    let currentUser = null;
+    let playerName = null;
 
-  // Hilfsfunktion für Meldungen
-  function showMsg(text, color='red'){
-    msg.style.color = color;
-    msg.textContent = text;
-  }
+    // Registrierung
+    registerBtn.addEventListener("click", async () => {
+      const email = usernameInput.value + "@game.com"; // Benutzername als Email
+      const pass = passwordInput.value;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        currentUser = cred.user;
+        playerName = usernameInput.value;
 
-  // Registrierung (prüft Username auf Einzigartigkeit)
-  async function registerUser(){
-    showMsg('');
-    const username = document.getElementById('username').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if(!username || !email || !password){ showMsg('Bitte alle Felder ausfüllen.'); return; }
+        // Userdaten speichern
+        await set(ref(db, "users/" + currentUser.uid), {
+          username: playerName,
+          highscore: 0
+        });
+        alert("Registrierung erfolgreich!");
+        updateUI();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
 
-    try {
-      // prüfen ob username schon vorhanden
-      const usersSnap = await get(ref(db, 'users/'));
-      let exists = false;
-      usersSnap.forEach(c=>{
-        if(c.val().username === username) exists = true;
+    // Login
+    loginBtn.addEventListener("click", async () => {
+      const email = usernameInput.value + "@game.com";
+      const pass = passwordInput.value;
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        currentUser = cred.user;
+
+        // Namen aus DB laden
+        const snap = await get(ref(db, "users/" + currentUser.uid));
+        if (snap.exists()) {
+          playerName = snap.val().username;
+        }
+        alert("Login erfolgreich!");
+        updateUI();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      currentUser = null;
+      playerName = null;
+      updateUI();
+    });
+
+    function updateUI() {
+      if (currentUser) {
+        logoutBtn.style.display = "inline-block";
+        loginBtn.style.display = "none";
+        registerBtn.style.display = "none";
+      } else {
+        logoutBtn.style.display = "none";
+        loginBtn.style.display = "inline-block";
+        registerBtn.style.display = "inline-block";
+      }
+    }
+
+    // LIVE-LEADERBOARD mit onValue
+    function setupLiveLeaderboard() {
+      const lbRef = ref(db, "users");
+      onValue(lbRef, (snapshot) => {
+        leaderboardList.innerHTML = "";
+        let users = [];
+        snapshot.forEach(child => {
+          users.push(child.val());
+        });
+        users.sort((a,b) => b.highscore - a.highscore);
+        users.slice(0,10).forEach((u,i) => {
+          const li = document.createElement("li");
+          li.textContent = `${i+1}. ${u.username}: ${u.highscore}`;
+          leaderboardList.appendChild(li);
+        });
       });
-      if(exists){ showMsg('Username bereits vergeben. Wähle einen anderen.'); return; }
-
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = cred.user.uid;
-      await set(ref(db, 'users/' + uid), { username: username, highscore: 0 });
-      currentUser = uid;
-      currentUsername = username;
-      showMsg('Registrierung erfolgreich — du bist jetzt eingeloggt.', 'green');
-
-      // start game direkt nach Registrierung
-      startGame(0);
-    } catch(err) {
-      showMsg(err.message || 'Registrierungsfehler');
     }
-  }
+    setupLiveLeaderboard();
 
-  // Login
-  async function loginUser(){
-    showMsg('');
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if(!email || !password){ showMsg('Bitte E-Mail & Passwort eingeben.'); return; }
-
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const uid = cred.user.uid;
-      const snap = await get(ref(db, 'users/' + uid));
-      if(!snap.exists()){ showMsg('Benutzer nicht gefunden.'); return; }
-      currentUser = uid;
-      currentUsername = snap.val().username;
-      const savedHigh = snap.val().highscore ?? 0;
-      showMsg('Login erfolgreich — willkommen zurück, ' + currentUsername, 'green');
-
-      startGame(savedHigh);
-    } catch(err) {
-      showMsg(err.message || 'Loginfehler');
-    }
-  }
-
-  // Buttons per JS (besser für Mobile)
-  registerBtn.addEventListener('click', registerUser);
-  loginBtn.addEventListener('click', loginUser);
-
-  // Leaderboard-Funktion (Top 10)
-  async function updateLeaderboard(){
-    try {
-      const snap = await get(ref(db, 'users/'));
-      if(!snap.exists()){ document.getElementById('leaderboard').innerText = 'Keine Einträge'; return; }
-      const arr = [];
-      snap.forEach(c => arr.push(c.val()));
-      arr.sort((a,b)=> (b.highscore||0) - (a.highscore||0));
-      const top = arr.slice(0,10);
-      document.getElementById('leaderboard').innerHTML = top.map(u =>
-        (u.username === currentUsername ? `<b>${u.username}: ${u.highscore || 0}</b>` : `${u.username}: ${u.highscore || 0}`)
-      ).join('<br>');
-    } catch(e){
-      console.error('LB error', e);
-    }
-  }
-  // Aktualisieren, aber nur sichtbar nach Login/startGame
-  let leaderboardInterval = null;
-
-  // ---------------------------
-  // SPIEL (läuft erst nach startGame)
-  // ---------------------------
-  function startGame(savedHighscore = 0){
-    // UI wechseln
-    authBox.style.display = 'none';
-    canvas.style.display = 'block';
-    hud.style.display = 'flex';
-    leaderboardBox.style.display = 'block';
-    // clear existing leaderboard interval if any
-    if(leaderboardInterval) clearInterval(leaderboardInterval);
-    updateLeaderboard();
-    leaderboardInterval = setInterval(updateLeaderboard, 3000);
-
-    // Canvas + game setup
+    // ---- SPIEL ----
+    const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     let W = canvas.width, H = canvas.height;
-    function scaleForDPI(){ const dpr = window.devicePixelRatio || 1; canvas.width = W * dpr; canvas.height = H * dpr; canvas.style.width = W + 'px'; canvas.style.height = H + 'px'; ctx.setTransform(dpr,0,0,dpr,0,0); }
+
+    function scaleForDPI() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
     scaleForDPI();
 
-    // HUD elements
+    let running = true, gameOver = false, paused = false;
+    const player = {x:120,y:0,w:44,h:60,vy:0,jumpPower:-13,grounded:false,color:'#ff6b6b'};
+    const ground = { y: H - 80, height: 80 };
+    let obstacles = [], spawnTimer=0, spawnInterval=90;
+    let baseSpeed=5, speed=baseSpeed, frame=0;
+    let score=0, highscore=0;
     const scoreEl = document.getElementById('score');
     const highscoreEl = document.getElementById('highscore');
-    let highscore = savedHighscore || 0;
-    highscoreEl.textContent = highscore;
 
-    // Game state
-    let obstacles = [], spawnTimer = 0, spawnInterval = 90;
-    let baseSpeed = 5, speed = baseSpeed, distance = 0;
-    let score = 0;
-    const player = { x: 120, y: 0, w: 44, h: 60, vy: 0, jumpPower: -13, grounded: false, color: '#ff6b6b' };
-    const ground = { y: H - 80, height: 80 };
-    let wantJump = false, frame = 0, paused = false, gameOver = false;
-
-    function resetGame(){
-      obstacles = []; spawnTimer = 0; spawnInterval = 90; baseSpeed = 5; speed = baseSpeed; distance = 0; score = 0;
-      gameOver = false; player.y = ground.y - player.h; player.vy = 0; player.grounded = true;
-      scoreEl.textContent = Math.floor(score);
+    function resetGame() {
+      obstacles=[]; spawnTimer=0; spawnInterval=90;
+      baseSpeed=5; speed=baseSpeed; frame=0; score=0;
+      gameOver=false;
+      player.y=ground.y-player.h; player.vy=0; player.grounded=true;
     }
     resetGame();
 
-    function randRange(a,b){ return Math.random()*(b-a)+a; }
-    function spawnObstacle(){ const h = Math.round(randRange(20,50)); const w = Math.round(randRange(18,36)); const y = ground.y - h; obstacles.push({ x: W + 20, y, w, h, passed:false, color:'#2d3436' }); }
-    function collides(a,b){ const buffer = 8; return a.x+buffer < b.x + b.w && a.x + a.w - buffer > b.x && a.y+buffer < b.y + b.h && a.y + a.h - buffer > b.y; }
-
-    // Controls
-    window.addEventListener('keydown', (e)=>{ if(e.code === 'Space'){ e.preventDefault(); wantJump = true;} if(e.key==='r' || e.key==='R'){ if(gameOver) resetGame(); } if(e.key==='p' || e.key==='P'){ paused = !paused; document.getElementById('pauseBtn').textContent = paused ? 'Fortsetzen' : 'Pause'; }});
-    window.addEventListener('keyup', (e)=>{ if(e.code === 'Space') wantJump = false; });
-    canvas.addEventListener('mousedown', ()=>{ wantJump = true; setTimeout(()=>wantJump=false,100); });
-    canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); wantJump = true; setTimeout(()=>wantJump=false,150); }, { passive:false });
-    document.getElementById('pauseBtn').addEventListener('click', ()=>{ paused = !paused; document.getElementById('pauseBtn').textContent = paused ? 'Fortsetzen' : 'Pause'; });
-
-    // Save highscore to DB (per user)
-    async function storeHighscoreIfBetter() {
-      const s = Math.floor(score);
-      if(s > highscore){
-        highscore = s;
-        highscoreEl.textContent = highscore;
-        if(currentUser){
-          try { await update(ref(db, 'users/' + currentUser), { highscore: highscore }); }
-          catch(e){ console.error('Fehler beim Speichern Highscore', e); }
-        }
-      }
+    function spawnObstacle(){
+      const h = Math.round(Math.random()*30+20);
+      const w = Math.round(Math.random()*20+20);
+      const y = ground.y - h;
+      obstacles.push({x: W+20, y, w, h, passed:false, color:'#2d3436'});
     }
 
-    // Game loop
+    function collides(a,b){
+      const buffer=6;
+      return a.x+buffer < b.x+b.w && a.x+a.w-buffer > b.x && a.y+buffer < b.y+b.h && a.y+a.h-buffer > b.y;
+    }
+
+    window.addEventListener('keydown', e=>{
+      if(e.code==='Space'){ wantJump=true; }
+      if(e.key==='r' && gameOver) resetGame();
+      if(e.key==='p') togglePause();
+    });
+    let wantJump=false;
+    canvas.addEventListener('mousedown',()=>{wantJump=true; setTimeout(()=>wantJump=false,100);});
+
+    document.getElementById('pauseBtn').addEventListener('click', togglePause);
+    function togglePause(){ paused=!paused; document.getElementById('pauseBtn').textContent=paused?'Fortsetzen':'Pause'; }
+
     function update(){
-      if(paused || gameOver) return;
+      if(paused||gameOver) return;
       frame++;
-      if(frame % 300 === 0) baseSpeed += 0.3;
-      speed = baseSpeed + Math.floor(frame/600) * 0.4;
-      const gravity = 0.7;
-      if(wantJump && player.grounded){ player.vy = player.jumpPower; player.grounded = false; }
-      player.vy += gravity; player.y += player.vy;
-      if(player.y + player.h >= ground.y){ player.y = ground.y - player.h; player.vy = 0; player.grounded = true; }
+      if(frame%300===0) baseSpeed+=0.3;
+      speed=baseSpeed;
+
+      if(wantJump && player.grounded){ player.vy=player.jumpPower; player.grounded=false; }
+      player.vy+=0.7; player.y+=player.vy;
+      if(player.y+player.h>=ground.y){ player.y=ground.y-player.h; player.vy=0; player.grounded=true; }
+
       spawnTimer++;
-      if(spawnTimer >= spawnInterval){ spawnObstacle(); spawnTimer = 0; spawnInterval = Math.max(50, Math.round(randRange(60,140) - frame*0.02)); }
-      for(let i = obstacles.length-1; i >= 0; i--){
-        const ob = obstacles[i];
-        ob.x -= speed;
-        if(!ob.passed && ob.x + ob.w < player.x){ ob.passed = true; score += 10; }
-        if(ob.x + ob.w < -50) obstacles.splice(i,1);
-        if(collides(player, ob)){ gameOver = true; storeHighscoreIfBetter(); }
+      if(spawnTimer>=spawnInterval){ spawnObstacle(); spawnTimer=0; }
+
+      for(let i=obstacles.length-1;i>=0;i--){
+        const ob=obstacles[i]; ob.x-=speed;
+        if(!ob.passed && ob.x+ob.w<player.x){ ob.passed=true; score+=10; }
+        if(ob.x+ob.w<-50) obstacles.splice(i,1);
+        if(collides(player,ob)){ gameOver=true; saveHighscore(); }
       }
-      distance += speed * 0.016;
-      score += 0.02 * speed;
-      scoreEl.textContent = Math.floor(score);
+
+      scoreEl.textContent=Math.floor(score);
+    }
+
+    async function saveHighscore(){
+      const s=Math.floor(score);
+      if(currentUser){
+        const userRef = ref(db,"users/"+currentUser.uid);
+        await update(userRef,{highscore: s});
+      }
     }
 
     function draw(){
       ctx.clearRect(0,0,W,H);
-      // background hills
-      ctx.fillStyle = '#9AD36B';
-      ctx.beginPath();
-      ctx.ellipse(W*0.2 - (frame*0.2)%W, ground.y+20, 420, 110, 0, Math.PI, 2*Math.PI);
-      ctx.ellipse(W*0.8 - (frame*0.2)%W, ground.y+40, 380, 100, 0, Math.PI, 2*Math.PI);
-      ctx.fill();
-
-      ctx.fillStyle = '#4CAF50';
-      ctx.fillRect(0, ground.y, W, ground.height);
-
-      for(let i=0;i<6;i++){
-        const x = ((frame*speed*0.5) + i*220) % (W+220) - 220;
-        ctx.fillStyle = 'rgba(0,0,0,0.06)';
-        ctx.fillRect(x, ground.y + 10, 120, 8);
-      }
-
-      for(const ob of obstacles){ ctx.fillStyle = ob.color; roundRect(ctx, ob.x, ob.y, ob.w, ob.h, 6, true, false); }
-
-      // player
-      ctx.fillStyle = player.color;
-      roundRect(ctx, player.x, player.y, player.w, player.h, 8, true, false);
-      // legs
-      const t = Date.now() / 120;
-      const legOffset = player.grounded ? Math.sin(t) * 6 : Math.sin(t/4) * 2;
-      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(player.x + 12, player.y + player.h);
-      ctx.lineTo(player.x + 12 + legOffset, player.y + player.h + 18);
-      ctx.moveTo(player.x + player.w - 12, player.y + player.h);
-      ctx.lineTo(player.x + player.w - 12 - legOffset, player.y + player.h + 18);
-      ctx.stroke();
-
-      if(gameOver){
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(0,0,W,H);
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 36px system-ui,Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('Game Over', W/2, H/2 - 10);
-        ctx.font = '18px system-ui,Arial';
-        ctx.fillText('Drücke R oder klicke zum Neustart', W/2, H/2 + 28);
-      }
-    }
-
-    function roundRect(ctx,x,y,w,h,r,fill,stroke){
-      if(typeof r==='undefined') r=5;
-      ctx.beginPath();
-      ctx.moveTo(x+r,y);
-      ctx.arcTo(x+w,y,x+w,y+h,r);
-      ctx.arcTo(x+w,y+h,x,y+h,r);
-      ctx.arcTo(x,y+h,x,y,r);
-      ctx.arcTo(x,y,x+w,y,r);
-      ctx.closePath();
-      if(fill) ctx.fill();
-      if(stroke) ctx.stroke();
+      ctx.fillStyle='#4CAF50'; ctx.fillRect(0,ground.y,W,ground.height);
+      ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
+      for(const ob of obstacles){ ctx.fillStyle=ob.color; ctx.fillRect(ob.x,ob.y,ob.w,ob.h); }
+      if(gameOver){ ctx.fillStyle='black'; ctx.font='24px Arial'; ctx.fillText("Game Over - R zum Neustart",W/2-140,H/2); }
     }
 
     function loop(){
-      update();
-      draw();
+      update(); draw();
       requestAnimationFrame(loop);
     }
-    requestAnimationFrame(loop);
-
-    // restart on click when game over
-    canvas.addEventListener('click', ()=>{ if(gameOver) { storeHighscoreIfBetter(); resetGame(); } });
-    canvas.addEventListener('dblclick', ()=>{ if(gameOver) resetGame(); });
-  }
-
-  // Hinweis: Bevor du testest, stelle sicher:
-  // - Firebase Console: Authentication -> Sign-in method -> E-Mail/Passwort ist aktiviert
-  // - Realtime Database rules erlauben lesen (für Leaderboard). Für Test:
-  // { "rules": { "users": { ".read": true, ".write": "auth != null && auth.uid === $uid" } } }
-  // Danach am besten die Regeln schärfen.
-
-</script>
+    loop();
+  </script>
 </body>
 </html>
