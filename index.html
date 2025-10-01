@@ -1,237 +1,237 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8">
-  <title>Unendliches Jump & Run iPad-kompatibel</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Unendliches Jump & Run</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin:0; background:#87CEEB; display:flex; flex-direction:column; align-items:center; }
-    #game { background:linear-gradient(#87CEEB,#6FC3F0); border-radius:12px; margin-top:20px; }
-    .hud { margin-top:10px; display:flex; gap:10px; }
-    .panel { background:#fff9; padding:6px 10px; border-radius:6px; font-weight:bold; }
-    #authSection { margin-top:20px; padding:10px; background:#fff9; border-radius:10px; width: 95%; max-width: 400px; }
-    #authSection input { display:block; margin:5px 0; padding:8px; width: 100%; font-size:16px; }
-    #authMessage { margin-top:8px; font-weight:bold; word-break: break-word; }
-    #leaderboard { margin-top:20px; background:#fff9; padding:10px; border-radius:10px; min-width:200px; word-break: break-word; }
-    button { padding:10px; margin-top:5px; width: 100%; font-weight:bold; border-radius:6px; cursor:pointer; font-size:16px; }
+    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+    html,body{height:100%;margin:0;background:#87CEEB;}
+    #gameWrap{display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center}
+    canvas{background:linear-gradient(#87CEEB,#6FC3F0);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+    .hud{position:relative;margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+    .panel{background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-weight:600;max-height:200px;overflow:auto}
+    .controls{font-size:13px;color:#333}
+    button{padding:8px 12px;border-radius:8px;border:0;background:#1f8ef1;color:white;font-weight:700;margin-top:6px}
+    #authSection{margin:20px auto;text-align:center}
+    #authSection input{padding:6px;margin:4px;border-radius:6px;border:1px solid #ccc;width:220px}
   </style>
 </head>
 <body>
-  <h1>Unendliches Jump & Run</h1>
-
   <div id="authSection">
-    <h3>Login / Registrierung</h3>
-    <input id="email" placeholder="E-Mail">
-    <input id="password" type="password" placeholder="Passwort">
-    <input id="username" placeholder="Benutzername (nur bei Registrierung)">
+    <h2>Login / Registrierung</h2>
+    <input id="email" placeholder="E-Mail"><br>
+    <input id="password" type="password" placeholder="Passwort"><br>
+    <input id="username" placeholder="Benutzername (nur bei Registrierung)"><br>
     <button id="registerBtn">Registrieren</button>
     <button id="loginBtn">Login</button>
-    <div id="authMessage"></div>
+    <div id="authMessage" style="color:red; font-weight:bold; margin-top:10px;"></div>
   </div>
 
-  <canvas id="game" width="800" height="400"></canvas>
-  <div class="hud">
-    <div class="panel">Score: <span id="score">0</span></div>
-    <div class="panel">Highscore: <span id="highscore">0</span></div>
+  <div id="gameWrap" style="display:none;">
+    <canvas id="game" width="900" height="420"></canvas>
+    <div class="hud">
+      <div class="panel">Score: <span id="score">0</span></div>
+      <div class="panel">Highscore: <span id="highscore">0</span></div>
+      <div class="panel" id="leaderboard">Highscores werden geladen...</div>
+      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen • R zum Neustart</div>
+      <button id="pauseBtn">Pause</button>
+    </div>
   </div>
 
-  <div id="leaderboard"><i>Leaderboard lädt…</i></div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+  import { getDatabase, ref, set, get, update, push, query, orderByChild, limitToLast } 
+    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-      from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-    import { getDatabase, ref, set, update, get } 
-      from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+  // --- Deine Firebase Config ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
+    authDomain: "jumpandrunhighscore.firebaseapp.com",
+    databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "jumpandrunhighscore",
+    storageBucket: "jumpandrunhighscore.firebasestorage.app",
+    messagingSenderId: "770421489723",
+    appId: "1:770421489723:web:8bc433474dae3d7d5edc1e",
+    measurementId: "G-SJD78YNJK0"
+  };
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
-      authDomain: "jumpandrunhighscore.firebaseapp.com",
-      databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "jumpandrunhighscore",
-      storageBucket: "jumpandrunhighscore.firebasestorage.app",
-      messagingSenderId: "770421489723",
-      appId: "1:770421489723:web:8bc433474dae3d7d5edc1e",
-      measurementId: "G-SJD78YNJK0"
-    };
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
 
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+  let currentUser = null;
+  let currentUsername = "";
 
-    let currentUser = null;
-    let currentUsername = null;
-    let gameLoopId = null;
+  const msg = document.getElementById("authMessage");
+  const gameWrap = document.getElementById("gameWrap");
+  const authSection = document.getElementById("authSection");
 
-    const msg = document.getElementById("authMessage");
-    const scoreEl = document.getElementById("score");
-    const highscoreEl = document.getElementById("highscore");
+  async function registerUser() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const username = document.getElementById("username").value;
+    if(!username) { msg.textContent = "Bitte Benutzername eingeben"; return; }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      await set(ref(db, "users/" + uid), { username, highscore: 0 });
+      currentUser = uid;
+      currentUsername = username;
+      msg.style.color = "green";
+      msg.textContent = "Account erstellt! Eingeloggt als " + username;
+      startGame();
+    } catch (err) {
+      msg.style.color = "red";
+      msg.textContent = err.message;
+    }
+  }
 
-    // === Registrierung ===
-    async function registerUser() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const username = document.getElementById("username").value;
-      if(!username){ msg.style.color="red"; msg.textContent="Bitte Benutzernamen eingeben"; return; }
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const uid = userCredential.user.uid;
-        await set(ref(db, "users/" + uid), { username, highscore: 0 });
+  async function loginUser() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      const snapshot = await get(ref(db, "users/" + uid));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
         currentUser = uid;
-        currentUsername = username;
+        currentUsername = data.username;
         msg.style.color = "green";
-        msg.textContent = "Account erstellt & eingeloggt als " + username;
-        startGame(0);
-        updateLeaderboard();
-      } catch (err) {
-        msg.style.color = "red";
-        msg.textContent = err.message;
+        msg.textContent = "Willkommen zurück, " + data.username;
+        startGame(data.highscore || 0);
       }
+    } catch (err) {
+      msg.style.color = "red";
+      msg.textContent = err.message;
     }
+  }
 
-    // === Login ===
-    async function loginUser() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const uid = userCredential.user.uid;
-        const snap = await get(ref(db, "users/" + uid));
-        if (snap.exists()) {
-          const data = snap.val();
-          currentUser = uid;
-          currentUsername = data.username;
-          msg.style.color = "green";
-          msg.textContent = "Willkommen zurück, " + data.username;
-          startGame(data.highscore ?? 0);
-          updateLeaderboard();
-        }
-      } catch (err) {
-        msg.style.color = "red";
-        msg.textContent = err.message;
-      }
+  document.getElementById("registerBtn").addEventListener("click", registerUser);
+  document.getElementById("loginBtn").addEventListener("click", loginUser);
+
+  // --- SPIEL ---
+  function startGame(existingHighscore=0) {
+    authSection.style.display = "none";
+    gameWrap.style.display = "flex";
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width, H = canvas.height;
+    const scoreEl = document.getElementById('score');
+    const highscoreEl = document.getElementById('highscore');
+    let highscore = existingHighscore;
+    highscoreEl.textContent = highscore;
+
+    function scaleForDPI() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
     }
+    scaleForDPI();
 
-    // === Buttons für iPad/Desktop ===
-    document.addEventListener("DOMContentLoaded", () => {
-      const registerBtn = document.getElementById("registerBtn");
-      const loginBtn = document.getElementById("loginBtn");
+    let gameOver = false;
+    let paused = false;
+    let score = 0;
 
-      registerBtn.addEventListener("click", registerUser);
-      registerBtn.addEventListener("touchend", registerUser);
+    const player = { x: 120, y: 0, w: 44, h: 60, vy: 0, jumpPower: -13, grounded: false, color: '#ff6b6b' };
+    const ground = { y: H - 80, height: 80 };
+    let obstacles = [], spawnTimer = 0, spawnInterval = 90;
+    let baseSpeed = 5, speed = baseSpeed;
+    let wantJump = false, frame = 0;
 
-      loginBtn.addEventListener("click", loginUser);
-      loginBtn.addEventListener("touchend", loginUser);
-    });
-
-    // === Leaderboard ===
-    async function updateLeaderboard(){
-      const leaderboardEl = document.getElementById("leaderboard");
-      leaderboardEl.innerHTML = "⏳ Lade...";
-      try {
-        const snap = await get(ref(db,"users/"));
-        if(!snap.exists()){ leaderboardEl.innerHTML = "Keine Einträge."; return; }
-        const arr = [];
-        snap.forEach(c => arr.push(c.val()));
-        arr.sort((a,b)=> (b.highscore||0) - (a.highscore||0));
-        const top = arr.slice(0,10);
-        leaderboardEl.innerHTML = top.map(u =>
-          (u.username === currentUsername ? `<b>${u.username}: ${u.highscore || 0}</b>` : `${u.username}: ${u.highscore || 0}`)
-        ).join("<br>");
-      } catch(e){
-        console.error("Fehler Leaderboard:", e);
-        leaderboardEl.innerHTML = "⚠️ Fehler beim Laden";
-      }
+    function resetGame(){
+      obstacles = []; spawnTimer=0; spawnInterval=90;
+      baseSpeed=5; speed=baseSpeed; score=0; gameOver=false;
+      player.y = ground.y-player.h; player.vy=0; player.grounded=true;
     }
-    setInterval(updateLeaderboard, 5000);
+    resetGame();
 
-    // === Spiel ===
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-    let player, ground, obstacles, speed, score, highscore, gameOver;
-
-    function startGame(savedHS){
-      if(gameLoopId) cancelAnimationFrame(gameLoopId);
-      player = {x:100,y:0,w:40,h:50,vy:0,jumpPower:-12,grounded:false};
-      ground = {y:canvas.height-60,height:60};
-      obstacles = [];
-      speed = 5;
-      score = 0;
-      highscore = savedHS||0;
-      highscoreEl.textContent = highscore;
-      gameOver=false;
-      player.y = ground.y - player.h;
-      gameLoopId = requestAnimationFrame(loop);
-    }
-
+    function randRange(a,b){return Math.random()*(b-a)+a}
     function spawnObstacle(){
-      const h = 20+Math.random()*40;
-      const w = 20+Math.random()*30;
-      const y = ground.y-h;
-      obstacles.push({x:canvas.width+20,y,w,h});
+      const h = Math.round(randRange(20, 50));
+      const w = Math.round(randRange(18, 36));
+      const y = ground.y - h;
+      obstacles.push({x: W + 20, y, w, h, passed: false, color: '#2d3436'});
+    }
+    function collides(a,b){
+      const buf=8; return a.x+buf<b.x+b.w && a.x+a.w-buf>b.x && a.y+buf<b.y+b.h && a.y+a.h-buf>b.y;
     }
 
-    function collides(a,b){
-      return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+    function saveHighscore(){
+      const s=Math.floor(score);
+      if(s>highscore){
+        highscore=s;
+        highscoreEl.textContent = highscore;
+        update(ref(db, "users/" + currentUser), { highscore: highscore });
+      }
     }
+
+    async function updateLeaderboard(){
+      const q=query(ref(db,"users/"), orderByChild("highscore"), limitToLast(10));
+      const snap=await get(q);
+      const arr=[]; snap.forEach(c=>arr.push(c.val()));
+      arr.sort((a,b)=>b.highscore-a.highscore);
+      document.getElementById("leaderboard").innerHTML = arr.map(u =>
+        (u.username===currentUsername?`<b>${u.username}: ${u.highscore}</b>`:`${u.username}: ${u.highscore}`)
+      ).join("<br>");
+    }
+    setInterval(updateLeaderboard,3000);
+
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{
+      paused=!paused; document.getElementById('pauseBtn').textContent=paused?"Fortsetzen":"Pause";
+    });
+    window.addEventListener('keydown',e=>{
+      if(e.code==="Space") wantJump=true;
+      if(e.key==="r") if(gameOver) resetGame();
+    });
+    window.addEventListener('keyup',e=>{ if(e.code==="Space") wantJump=false; });
+    canvas.addEventListener('mousedown',()=>{wantJump=true;setTimeout(()=>wantJump=false,100);});
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();wantJump=true;setTimeout(()=>wantJump=false,150);},{passive:false});
 
     function update(){
-      if(gameOver) return;
-      player.vy += 0.6;
-      player.y += player.vy;
-      if(player.y+player.h >= ground.y){ player.y=ground.y-player.h; player.vy=0; player.grounded=true; }
-      if(Math.random()<0.02) spawnObstacle();
-      obstacles.forEach(o=> o.x -= speed);
-      for(const o of obstacles){
-        if(collides(player,o)){ 
-          gameOver=true; 
-          saveHighscore(); 
-        }
+      if(paused||gameOver) return;
+      frame++;
+      if(frame%300===0) baseSpeed+=0.3;
+      speed=baseSpeed+Math.floor(frame/600)*0.4;
+      if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}
+      player.vy+=0.7; player.y+=player.vy;
+      if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
+      spawnTimer++; if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;spawnInterval=Math.max(50,Math.round(randRange(60,140)-frame*0.02));}
+      for(let i=obstacles.length-1;i>=0;i--){
+        const ob=obstacles[i]; ob.x-=speed;
+        if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true; score+=10;}
+        if(ob.x+ob.w<-50) obstacles.splice(i,1);
+        if(collides(player,ob)){gameOver=true; saveHighscore();}
       }
-      score+=0.1;
-      scoreEl.textContent = Math.floor(score);
+      score+=0.02*speed; scoreEl.textContent=Math.floor(score);
     }
 
     function draw(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,canvas.width,ground.height);
-      ctx.fillStyle="red"; ctx.fillRect(player.x,player.y,player.w,player.h);
-      ctx.fillStyle="black";
-      obstacles.forEach(o=> ctx.fillRect(o.x,o.y,o.w,o.h));
-      if(gameOver){ 
-        ctx.fillStyle="rgba(0,0,0,0.5)"; 
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.fillStyle="white"; 
-        ctx.font="30px sans-serif"; 
-        ctx.fillText("Game Over", canvas.width/2-80, canvas.height/2);
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,W,ground.height);
+      for(const ob of obstacles){ctx.fillStyle=ob.color;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
+      ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
+      if(gameOver){
+        ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle="white"; ctx.font="bold 36px system-ui"; ctx.textAlign="center";
+        ctx.fillText("Game Over",W/2,H/2-10);
       }
     }
 
-    function loop(){
-      update();
-      draw();
-      if(!gameOver) gameLoopId = requestAnimationFrame(loop);
-    }
-
-    window.addEventListener("keydown", e=>{
-      if(e.code==="Space" && player.grounded){ player.vy=player.jumpPower; player.grounded=false; }
-    });
-
-    function saveHighscore(){
-      const s = Math.floor(score);
-      if(s > highscore){
-        highscore=s;
-        highscoreEl.textContent=highscore;
-        if(currentUser){
-          update(ref(db,"users/"+currentUser), {highscore:highscore});
-          updateLeaderboard();
-        }
-      }
-    }
-  </script>
+    function loop(){ update(); draw(); requestAnimationFrame(loop); }
+    loop();
+  }
+</script>
 </body>
 </html>
+
 
 
 
