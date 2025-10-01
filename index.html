@@ -1,50 +1,11 @@
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Unendliches Jump & Run</title>
-  <style>
-    :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    html,body{height:100%;margin:0;background:#87CEEB;}
-    #gameWrap{display:flex;flex-direction:column;height:100vh;align-items:center;justify-content:center}
-    canvas{background:linear-gradient(#87CEEB,#6FC3F0);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
-    .hud{position:relative;margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
-    .panel{background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-weight:600;max-height:200px;overflow:auto}
-    .controls{font-size:13px;color:#333}
-    button{padding:8px 12px;border-radius:8px;border:0;background:#1f8ef1;color:white;font-weight:700;margin-top:6px}
-    #authSection{margin:20px auto;text-align:center}
-    #authSection input{padding:6px;margin:4px;border-radius:6px;border:1px solid #ccc;width:220px}
-  </style>
-</head>
-<body>
-  <div id="authSection">
-    <h2>Login / Registrierung</h2>
-    <input id="email" placeholder="E-Mail"><br>
-    <input id="password" type="password" placeholder="Passwort"><br>
-    <input id="username" placeholder="Benutzername (nur bei Registrierung)"><br>
-    <button id="registerBtn">Registrieren</button>
-    <button id="loginBtn">Login</button>
-    <div id="authMessage" style="color:red; font-weight:bold; margin-top:10px;"></div>
-  </div>
-
-  <div id="gameWrap" style="display:none;">
-    <canvas id="game" width="900" height="420"></canvas>
-    <div class="hud">
-      <div class="panel">Score: <span id="score">0</span></div>
-      <div class="panel">Highscore: <span id="highscore">0</span></div>
-      <div class="panel" id="leaderboard">Highscores werden geladen...</div>
-      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen • R zum Neustart</div>
-      <button id="pauseBtn">Pause</button>
-    </div>
-  </div>
-
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
-    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-  import { getDatabase, ref, set, get, update, push, query, orderByChild, limitToLast } 
-    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+  import { 
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword 
+  } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+  import { 
+    getDatabase, ref, set, get, update, query, orderByChild, limitToLast 
+  } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
   // --- Deine Firebase Config ---
   const firebaseConfig = {
@@ -82,7 +43,7 @@
       currentUsername = username;
       msg.style.color = "green";
       msg.textContent = "Account erstellt! Eingeloggt als " + username;
-      startGame();
+      startGame(0);
     } catch (err) {
       msg.style.color = "red";
       msg.textContent = err.message;
@@ -123,7 +84,7 @@
     let W = canvas.width, H = canvas.height;
     const scoreEl = document.getElementById('score');
     const highscoreEl = document.getElementById('highscore');
-    let highscore = existingHighscore;
+    let highscore = existingHighscore;   // <- gespeicherter Wert übernehmen
     highscoreEl.textContent = highscore;
 
     function scaleForDPI() {
@@ -174,7 +135,7 @@
     }
 
     async function updateLeaderboard(){
-      const q=query(ref(db,"users/"), orderByChild("highscore"), limitToLast(10));
+      const q=query(ref(db,"users"), orderByChild("highscore"), limitToLast(10));
       const snap=await get(q);
       const arr=[]; snap.forEach(c=>arr.push(c.val()));
       arr.sort((a,b)=>b.highscore-a.highscore);
@@ -182,7 +143,8 @@
         (u.username===currentUsername?`<b>${u.username}: ${u.highscore}</b>`:`${u.username}: ${u.highscore}`)
       ).join("<br>");
     }
-    setInterval(updateLeaderboard,3000);
+    updateLeaderboard();
+    setInterval(updateLeaderboard,5000);
 
     document.getElementById('pauseBtn').addEventListener('click', ()=>{
       paused=!paused; document.getElementById('pauseBtn').textContent=paused?"Fortsetzen":"Pause";
@@ -229,8 +191,7 @@
     loop();
   }
 </script>
-</body>
-</html>
+
 
 
 
