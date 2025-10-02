@@ -1,141 +1,162 @@
-/* --- Allgemein --- */
-:root {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  --primary-color: #1f8ef1;
-  --secondary-color: #4CAF50;
-  --bg-gradient-start: #87CEEB;
-  --bg-gradient-end: #6FC3F0;
-}
-
-html, body {
-  height: 100%;
+/* --- Global --- */
+body {
   margin: 0;
-  background: linear-gradient(to bottom, var(--bg-gradient-start), var(--bg-gradient-end));
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: linear-gradient(180deg, #0f2027, #203a43, #2c5364);
+  color: #fff;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+h2 {
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 1.6rem;
+  color: #ffcc70;
 }
 
 /* --- Auth Section --- */
 #authSection {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 30px 40px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 20px 30px;
   border-radius: 16px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
-  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
   max-width: 350px;
-}
-
-#authSection h2 {
-  margin-bottom: 20px;
-  color: #333;
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 1s ease;
 }
 
 #authSection input {
   width: 100%;
-  padding: 10px 12px;
-  margin: 8px 0;
+  padding: 10px;
+  margin: 6px 0;
   border-radius: 8px;
-  border: 1px solid #ccc;
-  font-size: 14px;
-  transition: border 0.2s;
-}
-
-#authSection input:focus {
-  border-color: var(--primary-color);
+  border: none;
   outline: none;
+  font-size: 1rem;
 }
 
 #authSection button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
+  margin: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
   border: none;
-  border-radius: 12px;
-  font-weight: bold;
-  font-size: 14px;
+  font-size: 1rem;
   cursor: pointer;
-  background-color: var(--primary-color);
+  background: #ff6b6b;
   color: white;
-  transition: background 0.2s, transform 0.1s;
+  transition: background 0.3s;
 }
 
 #authSection button:hover {
-  background-color: #1976d2;
-  transform: scale(1.03);
+  background: #ff3b3b;
 }
 
 /* --- Game Wrap --- */
 #gameWrap {
-  display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100vh;
-  gap: 12px;
+  gap: 15px;
+  width: 100%;
+  animation: fadeIn 1s ease;
 }
 
-canvas {
-  background: linear-gradient(var(--bg-gradient-start), var(--bg-gradient-end));
-  border-radius: 16px;
-  box-shadow: 0 12px 36px rgba(0,0,0,0.25);
-  max-width: 95%;
-  height: auto;
+canvas#game {
+  border: 3px solid #ffcc70;
+  border-radius: 12px;
+  background: #e8f5e9;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
 /* --- HUD --- */
 .hud {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .panel {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 10px 15px;
   border-radius: 12px;
-  font-weight: 600;
-  max-height: 220px;
-  overflow-y: auto;
-  min-width: 150px;
+  font-size: 1.1rem;
+  min-width: 240px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
 
+#leaderboard {
+  font-size: 0.95rem;
+  line-height: 1.5rem;
+  text-align: left;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#leaderboard b {
+  color: #ffcc70;
+}
+
+/* --- Controls + Buttons --- */
 .controls {
-  font-size: 13px;
-  color: #333;
-  min-width: 200px;
+  font-size: 0.9rem;
+  color: #ddd;
+  margin-top: 5px;
 }
 
-/* --- Buttons --- */
-.hud button {
-  padding: 10px 16px;
-  border-radius: 12px;
+button {
+  background: #4CAF50;
   border: none;
-  background: var(--primary-color);
   color: white;
-  font-weight: bold;
+  padding: 8px 16px;
+  font-size: 1rem;
+  margin: 3px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition: transform 0.15s, background 0.3s;
 }
 
-.hud button:hover {
-  background: #1976d2;
+button:hover {
+  background: #43a047;
   transform: scale(1.05);
 }
 
-/* --- Leaderboard --- */
-#leaderboard {
-  text-align: left;
-  font-size: 14px;
-  line-height: 1.5;
+#pauseBtn {
+  background: #2196F3;
+}
+#pauseBtn:hover {
+  background: #1976D2;
 }
 
-/* --- Game Over Overlay --- */
-canvas.game-over {
-  position: relative;
+#resetBtn {
+  background: #f44336;
+}
+#resetBtn:hover {
+  background: #d32f2f;
+}
+
+/* --- Scrollbar Styling (Leaderboard) --- */
+#leaderboard::-webkit-scrollbar {
+  width: 8px;
+}
+#leaderboard::-webkit-scrollbar-thumb {
+  background: #ffcc70;
+  border-radius: 6px;
+}
+#leaderboard::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.1);
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+  from {opacity: 0; transform: translateY(15px);}
+  to {opacity: 1; transform: translateY(0);}
 }
 
