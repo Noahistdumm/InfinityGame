@@ -68,7 +68,10 @@
         return;
       }
       const data = snapshot.val();
-      const arr = Object.values(data);
+      const arr = Object.values(data).map(u => ({
+        username: u.username,
+        highscore: u.highscore || 0
+      }));
       arr.sort((a, b) => b.highscore - a.highscore);
       const top10 = arr.slice(0, 10);
       document.getElementById("leaderboard").innerHTML = top10.map(u =>
@@ -232,7 +235,10 @@
     function draw(){
       ctx.clearRect(0,0,W,H);
       ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,W,ground.height);
-      for(const ob of obstacles){ctx.fillStyle=ob.color;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
+      for(const ob of obstacles){
+        ctx.fillStyle=ob.color;
+        ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+      }
       ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
       if(gameOver){
         ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H);
@@ -243,6 +249,13 @@
 
     function loop(){ update(); draw(); requestAnimationFrame(loop); }
     loop();
+
+    // Highscore auch beim Tab-/Seitenwechsel sichern
+    window.addEventListener("beforeunload", () => {
+      if(currentUser){
+        update(ref(db, "users/" + currentUser), { highscore: highscore });
+      }
+    });
   }
 </script>
 </body>
