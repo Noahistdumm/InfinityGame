@@ -1,250 +1,249 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Jump Game</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Unendliches Jump & Run</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-    import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
-
-    // TODO: Deine Firebase-Konfig hier einsetzen!
-    const firebaseConfig = {
-      apiKey: "DEIN_API_KEY",
-      authDomain: "DEIN_AUTH_DOMAIN",
-      databaseURL: "DEINE_DATABASE_URL",
-      projectId: "DEIN_PROJECT_ID",
-      storageBucket: "DEIN_STORAGE_BUCKET",
-      messagingSenderId: "DEINE_SENDER_ID",
-      appId: "DEINE_APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
-
-    let currentUser = null;
-    let currentUsername = "";
-    const authSection = document.getElementById("auth");
-    const gameWrap = document.getElementById("gameWrap");
-    const msg = document.getElementById("msg");
-
-    document.getElementById("registerBtn").addEventListener("click", registerUser);
-    document.getElementById("loginBtn").addEventListener("click", loginUser);
-
-    // Registrierung
-    async function registerUser() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      const username = document.getElementById("username").value;
-
-      try {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const uid = userCredential.user.uid;
-
-        await set(ref(db, "users/" + uid), {
-          username: username,
-          highscore: 0
-        });
-
-        currentUser = uid;
-        currentUsername = username;
-
-        setupLeaderboardRealtime();
-
-        msg.style.color = "green";
-        msg.textContent = "Registrierung erfolgreich! Willkommen, " + username;
-
-        // Spiel mit Highscore = 0 starten
-        startGame(0);
-
-      } catch (err) {
-        msg.style.color = "red";
-        msg.textContent = err.message;
-      }
-    }
-
-    // Login
-    async function loginUser() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const uid = userCredential.user.uid;
-        const snapshot = await get(ref(db, "users/" + uid));
-
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          currentUser = uid;
-          currentUsername = data.username;
-
-          setupLeaderboardRealtime();
-
-          const existingHighscore = data.highscore !== undefined ? data.highscore : 0;
-          document.getElementById("highscore").textContent = existingHighscore;
-
-          msg.style.color = "green";
-          msg.textContent = "Willkommen zurück, " + data.username;
-
-          startGame(existingHighscore);
-        }
-      } catch (err) {
-        msg.style.color = "red";
-        msg.textContent = err.message;
-      }
-    }
-
-    // Leaderboard
-    function setupLeaderboardRealtime() {
-      const leaderboard = document.getElementById("leaderboard");
-      onValue(ref(db, "users"), (snapshot) => {
-        const users = [];
-        snapshot.forEach(child => {
-          const val = child.val();
-          users.push({ username: val.username, highscore: val.highscore || 0 });
-        });
-        users.sort((a,b)=>b.highscore-a.highscore);
-        leaderboard.innerHTML = users.map(u => `<li>${u.username}: ${u.highscore}</li>`).join("");
-      });
-    }
-
-    // Spiel
-    function startGame(existingHighscore=0) {
-      authSection.style.display = "none";
-      gameWrap.style.display = "flex";
-
-      const canvas = document.getElementById('game');
-      const ctx = canvas.getContext('2d');
-      let W = canvas.width, H = canvas.height;
-      const scoreEl = document.getElementById('score');
-      const highscoreEl = document.getElementById('highscore');
-
-      let highscore = existingHighscore;
-      highscoreEl.textContent = highscore;
-
-      function scaleForDPI() {
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = W * dpr;
-        canvas.height = H * dpr;
-        canvas.style.width = W + 'px';
-        canvas.style.height = H + 'px';
-        ctx.setTransform(dpr,0,0,dpr,0,0);
-      }
-      scaleForDPI();
-
-      let gameOver = false;
-      let paused = false;
-      let score = 0;
-
-      const player = { x: 120, y: 0, w: 44, h: 60, vy: 0, jumpPower: -13, grounded: false, color: '#ff6b6b' };
-      const ground = { y: H - 80, height: 80 };
-      let obstacles = [], spawnTimer = 0, spawnInterval = 90;
-      let baseSpeed = 5, speed = baseSpeed;
-      let wantJump = false, frame = 0;
-
-      function resetGame(){
-        obstacles = []; spawnTimer=0; spawnInterval=90;
-        baseSpeed=5; speed=baseSpeed; score=0; gameOver=false;
-        player.y = ground.y-player.h; player.vy=0; player.grounded=true;
-      }
-      resetGame();
-
-      function randRange(a,b){return Math.random()*(b-a)+a}
-      function spawnObstacle(){
-        const h = Math.round(randRange(20, 50));
-        const w = Math.round(randRange(18, 36));
-        const y = ground.y - h;
-        obstacles.push({x: W + 20, y, w, h, passed: false, color: '#2d3436'});
-      }
-      function collides(a,b){
-        const buf=8; return a.x+buf<b.x+b.w && a.x+a.w-buf>b.x && a.y+buf<b.y+b.h && a.y+a.h-buf>b.y;
-      }
-
-      function saveHighscore(){
-        const s=Math.floor(score);
-        if(s > highscore){
-          highscore = s;
-          highscoreEl.textContent = highscore;
-          update(ref(db, "users/" + currentUser), { highscore: highscore });
-        }
-      }
-
-      document.getElementById('pauseBtn').addEventListener('click', ()=>{
-        paused=!paused; document.getElementById('pauseBtn').textContent=paused?"Fortsetzen":"Pause";
-      });
-
-      document.getElementById('resetBtn').addEventListener('click', ()=>{
-        resetGame();
-      });
-
-      window.addEventListener('keydown',e=>{
-        if(e.code==="Space") wantJump=true;
-        if(e.key==="r") if(gameOver) resetGame();
-      });
-      window.addEventListener('keyup',e=>{ if(e.code==="Space") wantJump=false; });
-      canvas.addEventListener('mousedown',()=>{wantJump=true;setTimeout(()=>wantJump=false,100);});
-      canvas.addEventListener('touchstart',e=>{e.preventDefault();wantJump=true;setTimeout(()=>wantJump=false,150);},{passive:false});
-
-      function update(){
-        if(paused||gameOver) return;
-        frame++;
-        if(frame%300===0) baseSpeed+=0.3;
-        speed=baseSpeed+Math.floor(frame/600)*0.4;
-        if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}
-        player.vy+=0.7; player.y+=player.vy;
-        if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
-        spawnTimer++; if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;spawnInterval=Math.max(50,Math.round(randRange(60,140)-frame*0.02));}
-        for(let i=obstacles.length-1;i>=0;i--){
-          const ob=obstacles[i]; ob.x-=speed;
-          if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true; score+=10;}
-          if(ob.x+ob.w<-50) obstacles.splice(i,1);
-          if(collides(player,ob)){gameOver=true; saveHighscore();}
-        }
-        score+=0.02*speed; scoreEl.textContent=Math.floor(score);
-      }
-
-      function draw(){
-        ctx.clearRect(0,0,W,H);
-        ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,W,ground.height);
-        for(const ob of obstacles){ctx.fillStyle=ob.color;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
-        ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
-        if(gameOver){
-          ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H);
-          ctx.fillStyle="white"; ctx.font="bold 36px system-ui"; ctx.textAlign="center";
-          ctx.fillText("Game Over",W/2,H/2-10);
-        }
-      }
-
-      function loop(){ update(); draw(); requestAnimationFrame(loop); }
-      loop();
-    }
-  </script>
 </head>
 <body>
-  <section id="auth">
-    <h1>Jump Game</h1>
-    <input type="text" id="username" placeholder="Benutzername">
-    <input type="email" id="email" placeholder="E-Mail">
-    <input type="password" id="password" placeholder="Passwort">
+  <div id="authSection">
+    <h2>Login / Registrierung</h2>
+    <input id="email" placeholder="E-Mail"><br>
+    <input id="password" type="password" placeholder="Passwort"><br>
+    <input id="username" placeholder="Benutzername (nur bei Registrierung)"><br>
     <button id="registerBtn">Registrieren</button>
     <button id="loginBtn">Login</button>
-    <p id="msg"></p>
-  </section>
+    <div id="authMessage" style="color:red; font-weight:bold; margin-top:10px;"></div>
+  </div>
 
-  <section id="gameWrap" style="display:none;">
+  <div id="gameWrap" style="display:none;">
+    <canvas id="game" width="900" height="420"></canvas>
     <div class="hud">
-      <span>Punkte: <span id="score">0</span></span>
-      <span>Highscore: <span id="highscore">0</span></span>
+      <div class="panel">Score: <span id="score">0</span></div>
+      <div class="panel">Highscore: <span id="highscore">0</span></div>
+      <div class="panel" id="leaderboard">Highscores werden geladen...</div>
+      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
       <button id="pauseBtn">Pause</button>
       <button id="resetBtn">Neustart</button>
     </div>
-    <canvas id="game" width="600" height="400"></canvas>
-    <h2>Leaderboard</h2>
-    <ul id="leaderboard"></ul>
-  </section>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+  import { getDatabase, ref, set, get, update, onValue } 
+    from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+
+  // --- Firebase Config ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
+    authDomain: "jumpandrunhighscore.firebaseapp.com",
+    databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "jumpandrunhighscore",
+    storageBucket: "jumpandrunhighscore.firebasestorage.app",
+    messagingSenderId: "770421489723",
+    appId: "1:770421489723:web:8bc433474dae3d7d5edc1e",
+    measurementId: "G-SJD78YNJK0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+  let currentUser = null;
+  let currentUsername = "";
+
+  const msg = document.getElementById("authMessage");
+  const gameWrap = document.getElementById("gameWrap");
+  const authSection = document.getElementById("authSection");
+
+  // --- Leaderboard Realtime Listener ---
+  function setupLeaderboardRealtime() {
+    const usersRef = ref(db, "users");
+    onValue(usersRef, snapshot => {
+      if (!snapshot.exists()) {
+        document.getElementById("leaderboard").innerText = "Keine Highscores vorhanden";
+        return;
+      }
+      const data = snapshot.val();
+      const arr = Object.values(data);
+      arr.sort((a, b) => b.highscore - a.highscore);
+      const top10 = arr.slice(0, 10);
+      document.getElementById("leaderboard").innerHTML = top10.map(u =>
+        u.username === currentUsername 
+          ? `<b>${u.username}: ${u.highscore}</b>` 
+          : `${u.username}: ${u.highscore}`
+      ).join("<br>");
+    });
+  }
+
+  // --- Benutzer Registrierung ---
+  async function registerUser() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const username = document.getElementById("username").value;
+    if(!username) { msg.textContent = "Bitte Benutzername eingeben"; return; }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      await set(ref(db, "users/" + uid), { username, highscore: 0 });
+      currentUser = uid;
+      currentUsername = username;
+
+      setupLeaderboardRealtime();
+
+      msg.style.color = "green";
+      msg.textContent = "Account erstellt! Eingeloggt als " + username;
+      startGame(0);
+    } catch (err) {
+      msg.style.color = "red";
+      msg.textContent = err.message;
+    }
+  }
+
+  // --- Benutzer Login ---
+  async function loginUser() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      const snapshot = await get(ref(db, "users/" + uid));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        currentUser = uid;
+        currentUsername = data.username;
+
+        setupLeaderboardRealtime();
+
+        const existingHighscore = data.highscore || 0;
+        msg.style.color = "green";
+        msg.textContent = "Willkommen zurück, " + data.username;
+        startGame(existingHighscore);
+      }
+    } catch (err) {
+      msg.style.color = "red";
+      msg.textContent = err.message;
+    }
+  }
+
+  document.getElementById("registerBtn").addEventListener("click", registerUser);
+  document.getElementById("loginBtn").addEventListener("click", loginUser);
+
+  // --- SPIEL ---
+  function startGame(existingHighscore=0) {
+    authSection.style.display = "none";
+    gameWrap.style.display = "flex";
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width, H = canvas.height;
+    const scoreEl = document.getElementById('score');
+    const highscoreEl = document.getElementById('highscore');
+    let highscore = existingHighscore;   
+    highscoreEl.textContent = highscore;
+
+    function scaleForDPI() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    scaleForDPI();
+
+    let gameOver = false;
+    let paused = false;
+    let score = 0;
+
+    const player = { x: 120, y: 0, w: 44, h: 60, vy: 0, jumpPower: -13, grounded: false, color: '#ff6b6b' };
+    const ground = { y: H - 80, height: 80 };
+    let obstacles = [], spawnTimer = 0, spawnInterval = 90;
+    let baseSpeed = 5, speed = baseSpeed;
+    let wantJump = false, frame = 0;
+
+    function resetGame(){
+      obstacles = []; spawnTimer=0; spawnInterval=90;
+      baseSpeed=5; speed=baseSpeed; score=0; gameOver=false;
+      player.y = ground.y-player.h; player.vy=0; player.grounded=true;
+    }
+    resetGame();
+
+    function randRange(a,b){return Math.random()*(b-a)+a}
+    function spawnObstacle(){
+      const h = Math.round(randRange(20, 50));
+      const w = Math.round(randRange(18, 36));
+      const y = ground.y - h;
+      obstacles.push({x: W + 20, y, w, h, passed: false, color: '#2d3436'});
+    }
+    function collides(a,b){
+      const buf=8; return a.x+buf<b.x+b.w && a.x+a.w-buf>b.x && a.y+buf<b.y+b.h && a.y+a.h-buf>b.y;
+    }
+
+    function saveHighscore(){
+      const s=Math.floor(score);
+      if(s>highscore){
+        highscore=s;
+        highscoreEl.textContent = highscore;
+        update(ref(db, "users/" + currentUser), { highscore: highscore });
+      }
+    }
+
+    document.getElementById('pauseBtn').addEventListener('click', ()=>{
+      paused=!paused; document.getElementById('pauseBtn').textContent=paused?"Fortsetzen":"Pause";
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', ()=>{
+      resetGame();
+    });
+
+    window.addEventListener('keydown',e=>{
+      if(e.code==="Space") wantJump=true;
+      if(e.key==="r") if(gameOver) resetGame();
+    });
+    window.addEventListener('keyup',e=>{ if(e.code==="Space") wantJump=false; });
+    canvas.addEventListener('mousedown',()=>{wantJump=true;setTimeout(()=>wantJump=false,100);});
+    canvas.addEventListener('touchstart',e=>{e.preventDefault();wantJump=true;setTimeout(()=>wantJump=false,150);},{passive:false});
+
+    function update(){
+      if(paused||gameOver) return;
+      frame++;
+      if(frame%300===0) baseSpeed+=0.3;
+      speed=baseSpeed+Math.floor(frame/600)*0.4;
+      if(wantJump&&player.grounded){player.vy=player.jumpPower;player.grounded=false;}
+      player.vy+=0.7; player.y+=player.vy;
+      if(player.y+player.h>=ground.y){player.y=ground.y-player.h;player.vy=0;player.grounded=true;}
+      spawnTimer++; if(spawnTimer>=spawnInterval){spawnObstacle();spawnTimer=0;spawnInterval=Math.max(50,Math.round(randRange(60,140)-frame*0.02));}
+      for(let i=obstacles.length-1;i>=0;i--){
+        const ob=obstacles[i]; ob.x-=speed;
+        if(!ob.passed&&ob.x+ob.w<player.x){ob.passed=true; score+=10;}
+        if(ob.x+ob.w<-50) obstacles.splice(i,1);
+        if(collides(player,ob)){gameOver=true; saveHighscore();}
+      }
+      score+=0.02*speed; scoreEl.textContent=Math.floor(score);
+
+      // Highscore regelmäßig prüfen
+      saveHighscore();
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,W,ground.height);
+      for(const ob of obstacles){ctx.fillStyle=ob.color;ctx.fillRect(ob.x,ob.y,ob.w,ob.h);}
+      ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.w,player.h);
+      if(gameOver){
+        ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle="white"; ctx.font="bold 36px system-ui"; ctx.textAlign="center";
+        ctx.fillText("Game Over",W/2,H/2-10);
+      }
+    }
+
+    function loop(){ update(); draw(); requestAnimationFrame(loop); }
+    loop();
+  }
+</script>
 </body>
 </html>
-
