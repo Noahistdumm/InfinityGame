@@ -18,6 +18,7 @@
   </style>
 </head>
 <body>
+  <!-- LOGIN -->
   <div id="authSection">
     <h2>Login / Registrierung</h2>
     <input id="email" placeholder="E-Mail"><br>
@@ -28,6 +29,7 @@
     <div id="authMessage" style="color:red; font-weight:bold; margin-top:10px;"></div>
   </div>
 
+  <!-- SPIEL -->
   <div id="gameWrap" style="display:none;">
     <canvas id="game" width="900" height="420"></canvas>
     <div class="hud">
@@ -46,10 +48,10 @@
     getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword 
   } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
   import { 
-    getDatabase, ref, set, get, update, query, orderByChild, limitToLast 
+    getDatabase, ref, set, get, update, query, orderByChild
   } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
-  // --- Deine Firebase Config ---
+  // --- Firebase Config ---
   const firebaseConfig = {
     apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
     authDomain: "jumpandrunhighscore.firebaseapp.com",
@@ -72,6 +74,7 @@
   const gameWrap = document.getElementById("gameWrap");
   const authSection = document.getElementById("authSection");
 
+  // --- Registrierung ---
   async function registerUser() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
@@ -92,6 +95,7 @@
     }
   }
 
+  // --- Login ---
   async function loginUser() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
@@ -116,7 +120,24 @@
   document.getElementById("registerBtn").addEventListener("click", registerUser);
   document.getElementById("loginBtn").addEventListener("click", loginUser);
 
-  // --- SPIEL ---
+  // --- Leaderboard Fix ---
+  async function updateLeaderboard(){
+    const q = query(ref(db,"users"), orderByChild("highscore"));
+    const snap = await get(q);
+    const arr = [];
+    snap.forEach(c => arr.push(c.val()));
+    // Sortiere nach Highscore (absteigend)
+    arr.sort((a,b) => b.highscore - a.highscore);
+    // Nimm nur die besten 10
+    const top10 = arr.slice(0,10);
+    document.getElementById("leaderboard").innerHTML = top10.map(u =>
+      (u.username === currentUsername
+        ? `<b>${u.username}: ${u.highscore}</b>`
+        : `${u.username}: ${u.highscore}`)
+    ).join("<br>");
+  }
+
+  // --- Spiel starten ---
   function startGame(existingHighscore=0) {
     authSection.style.display = "none";
     gameWrap.style.display = "flex";
@@ -176,15 +197,7 @@
       }
     }
 
-    async function updateLeaderboard(){
-      const q=query(ref(db,"users"), orderByChild("highscore"), limitToLast(10));
-      const snap=await get(q);
-      const arr=[]; snap.forEach(c=>arr.push(c.val()));
-      arr.sort((a,b)=>b.highscore-a.highscore);
-      document.getElementById("leaderboard").innerHTML = arr.map(u =>
-        (u.username===currentUsername?`<b>${u.username}: ${u.highscore}</b>`:`${u.username}: ${u.highscore}`)
-      ).join("<br>");
-    }
+    // Leaderboard alle 5 Sek. updaten
     updateLeaderboard();
     setInterval(updateLeaderboard,5000);
 
@@ -240,4 +253,3 @@
 </script>
 </body>
 </html>
-
