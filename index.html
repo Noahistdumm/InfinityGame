@@ -59,50 +59,6 @@
   const gameWrap = document.getElementById("gameWrap");
   const authSection = document.getElementById("authSection");
 
-  async function registerUser() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const username = document.getElementById("username").value;
-    if(!username) { msg.textContent = "Bitte Benutzername eingeben"; return; }
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-      await set(ref(db, "users/" + uid), { username, highscore: 0 });
-      currentUser = uid;
-      currentUsername = username;
-      msg.style.color = "green";
-      msg.textContent = "Account erstellt! Eingeloggt als " + username;
-      startGame(0);
-    } catch (err) {
-      msg.style.color = "red";
-      msg.textContent = err.message;
-    }
-  }
-
-  async function loginUser() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
-      const snapshot = await get(ref(db, "users/" + uid));
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        currentUser = uid;
-        currentUsername = data.username;
-        msg.style.color = "green";
-        msg.textContent = "Willkommen zurück, " + data.username;
-        startGame(data.highscore || 0);
-      }
-    } catch (err) {
-      msg.style.color = "red";
-      msg.textContent = err.message;
-    }
-  }
-
-  document.getElementById("registerBtn").addEventListener("click", registerUser);
-  document.getElementById("loginBtn").addEventListener("click", loginUser);
-
   // --- Leaderboard Realtime Listener ---
   function setupLeaderboardRealtime() {
     const usersRef = ref(db, "users");
@@ -123,6 +79,59 @@
     });
   }
 
+  // --- Benutzer Registrierung ---
+  async function registerUser() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const username = document.getElementById("username").value;
+    if(!username) { msg.textContent = "Bitte Benutzername eingeben"; return; }
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      await set(ref(db, "users/" + uid), { username, highscore: 0 });
+      currentUser = uid;
+      currentUsername = username;
+
+      setupLeaderboardRealtime();
+
+      msg.style.color = "green";
+      msg.textContent = "Account erstellt! Eingeloggt als " + username;
+      startGame(0);
+    } catch (err) {
+      msg.style.color = "red";
+      msg.textContent = err.message;
+    }
+  }
+
+  // --- Benutzer Login ---
+  async function loginUser() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+      const snapshot = await get(ref(db, "users/" + uid));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        currentUser = uid;
+        currentUsername = data.username;
+
+        setupLeaderboardRealtime();
+
+        const existingHighscore = data.highscore || 0;
+        msg.style.color = "green";
+        msg.textContent = "Willkommen zurück, " + data.username;
+        startGame(existingHighscore);
+      }
+    } catch (err) {
+      msg.style.color = "red";
+      msg.textContent = err.message;
+    }
+  }
+
+  document.getElementById("registerBtn").addEventListener("click", registerUser);
+  document.getElementById("loginBtn").addEventListener("click", loginUser);
+
   // --- SPIEL ---
   function startGame(existingHighscore=0) {
     authSection.style.display = "none";
@@ -135,8 +144,6 @@
     const highscoreEl = document.getElementById('highscore');
     let highscore = existingHighscore;   
     highscoreEl.textContent = highscore;
-
-    setupLeaderboardRealtime();
 
     function scaleForDPI() {
       const dpr = window.devicePixelRatio || 1;
@@ -217,7 +224,9 @@
         if(collides(player,ob)){gameOver=true; saveHighscore();}
       }
       score+=0.02*speed; scoreEl.textContent=Math.floor(score);
-      saveHighscore(); // Highscore regelmäßig speichern
+
+      // Highscore regelmäßig prüfen
+      saveHighscore();
     }
 
     function draw(){
@@ -238,6 +247,3 @@
 </script>
 </body>
 </html>
-
-
-
