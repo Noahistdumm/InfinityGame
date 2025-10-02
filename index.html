@@ -44,7 +44,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
   import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
     from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-  import { getDatabase, ref, set, get, update } 
+  import { getDatabase, ref, set, get, update, onValue } 
     from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
   // --- Firebase Config ---
@@ -114,22 +114,24 @@
   document.getElementById("registerBtn").addEventListener("click", registerUser);
   document.getElementById("loginBtn").addEventListener("click", loginUser);
 
-  // --- Leaderboard Funktion ---
-  async function updateLeaderboard(){
-    const snap = await get(ref(db,"users"));
-    if (!snap.exists()) {
-      document.getElementById("leaderboard").innerText = "Keine Highscores vorhanden";
-      return;
-    }
-    const data = snap.val();
-    const arr = Object.values(data);
-    arr.sort((a,b) => b.highscore - a.highscore);
-    const top10 = arr.slice(0,10);
-    document.getElementById("leaderboard").innerHTML = top10.map(u =>
-      (u.username === currentUsername
-        ? `<b>${u.username}: ${u.highscore}</b>`
-        : `${u.username}: ${u.highscore}`)
-    ).join("<br>");
+  // --- Leaderboard Realtime Listener ---
+  function setupLeaderboardRealtime() {
+    const usersRef = ref(db, "users");
+    onValue(usersRef, snapshot => {
+      if (!snapshot.exists()) {
+        document.getElementById("leaderboard").innerText = "Keine Highscores vorhanden";
+        return;
+      }
+      const data = snapshot.val();
+      const arr = Object.values(data);
+      arr.sort((a, b) => b.highscore - a.highscore);
+      const top10 = arr.slice(0, 10);
+      document.getElementById("leaderboard").innerHTML = top10.map(u =>
+        u.username === currentUsername 
+          ? `<b>${u.username}: ${u.highscore}</b>` 
+          : `${u.username}: ${u.highscore}`
+      ).join("<br>");
+    });
   }
 
   // --- SPIEL ---
@@ -144,6 +146,8 @@
     const highscoreEl = document.getElementById('highscore');
     let highscore = existingHighscore;   
     highscoreEl.textContent = highscore;
+
+    setupLeaderboardRealtime();
 
     function scaleForDPI() {
       const dpr = window.devicePixelRatio || 1;
@@ -189,7 +193,6 @@
         highscore=s;
         highscoreEl.textContent = highscore;
         update(ref(db, "users/" + currentUser), { highscore: highscore });
-        updateLeaderboard();
       }
     }
 
@@ -225,6 +228,7 @@
         if(collides(player,ob)){gameOver=true; saveHighscore();}
       }
       score+=0.02*speed; scoreEl.textContent=Math.floor(score);
+      saveHighscore(); // Highscore regelmäßig speichern
     }
 
     function draw(){
@@ -241,12 +245,9 @@
 
     function loop(){ update(); draw(); requestAnimationFrame(loop); }
     loop();
-
-    // Leaderboard beim Start laden + alle 5s
-    updateLeaderboard();
-    setInterval(updateLeaderboard,5000);
   }
 </script>
 </body>
 </html>
+
 
