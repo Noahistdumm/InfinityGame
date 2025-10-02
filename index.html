@@ -31,12 +31,11 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } 
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } 
     from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
   import { getDatabase, ref, set, get, update, onValue } 
     from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
-  // --- Firebase Config ---
   const firebaseConfig = {
     apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
     authDomain: "jumpandrunhighscore.firebaseapp.com",
@@ -89,6 +88,7 @@
     const username = document.getElementById("username").value;
     if(!username) { msg.textContent = "Bitte Benutzername eingeben"; return; }
     try {
+      await setPersistence(auth, browserLocalPersistence);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       await set(ref(db, "users/" + uid), { username, highscore: 0 });
@@ -96,7 +96,6 @@
       currentUsername = username;
 
       setupLeaderboardRealtime();
-
       msg.style.color = "green";
       msg.textContent = "Account erstellt! Eingeloggt als " + username;
       startGame(0);
@@ -111,6 +110,7 @@
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
     try {
+      await setPersistence(auth, browserLocalPersistence);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
       const snapshot = await get(ref(db, "users/" + uid));
@@ -118,9 +118,7 @@
         const data = snapshot.val();
         currentUser = uid;
         currentUsername = data.username;
-
         setupLeaderboardRealtime();
-
         const existingHighscore = data.highscore || 0;
         msg.style.color = "green";
         msg.textContent = "Willkommen zurück, " + data.username;
@@ -134,6 +132,22 @@
 
   document.getElementById("registerBtn").addEventListener("click", registerUser);
   document.getElementById("loginBtn").addEventListener("click", loginUser);
+
+  // --- Auto-login wenn Firebase noch eingeloggt ist ---
+  onAuthStateChanged(auth, async (user) => {
+    if(user && !currentUser){
+      currentUser = user.uid;
+      const snapshot = await get(ref(db, "users/" + currentUser));
+      if(snapshot.exists()){
+        const data = snapshot.val();
+        currentUsername = data.username;
+        setupLeaderboardRealtime();
+        startGame(data.highscore || 0);
+        msg.style.color = "green";
+        msg.textContent = "Willkommen zurück, " + currentUsername;
+      }
+    }
+  });
 
   // --- SPIEL ---
   function startGame(existingHighscore=0) {
@@ -191,7 +205,9 @@
       if(s>highscore){
         highscore=s;
         highscoreEl.textContent = highscore;
-        update(ref(db, "users/" + currentUser), { highscore: highscore });
+        if(currentUser){
+          update(ref(db, "users/" + currentUser), { highscore: highscore });
+        }
       }
     }
 
@@ -227,8 +243,6 @@
         if(collides(player,ob)){gameOver=true; saveHighscore();}
       }
       score+=0.02*speed; scoreEl.textContent=Math.floor(score);
-
-      // Highscore regelmäßig prüfen
       saveHighscore();
     }
 
@@ -250,11 +264,8 @@
     function loop(){ update(); draw(); requestAnimationFrame(loop); }
     loop();
 
-    // Highscore auch beim Tab-/Seitenwechsel sichern
     window.addEventListener("beforeunload", () => {
-      if(currentUser){
-        update(ref(db, "users/" + currentUser), { highscore: highscore });
-      }
+      saveHighscore();
     });
   }
 </script>
