@@ -176,26 +176,8 @@ function startGame(existingHighscore=0) {
   let baseSpeed = 5, speed = baseSpeed;
   let wantJump = false, frame = 0;
 
-  function resetGame(){
-    obstacles = []; spawnTimer=0; spawnInterval=90;
-    baseSpeed=5; speed=baseSpeed; score=0; gameOver=false;
-    player.y = ground.y-player.h; player.vy=0; player.grounded=true;
-  }
-  resetGame();
-
-  function randRange(a,b){return Math.random()*(b-a)+a}
-  function spawnObstacle(){
-    const h = Math.round(randRange(20, 50));
-    const w = Math.round(randRange(18, 36));
-    const y = ground.y - h;
-    obstacles.push({x: W + 20, y, w, h, passed: false, color: '#2d3436'});
-  }
-  function collides(a,b){
-    const buf=8; return a.x+buf<b.x+b.w && a.x+a.w-buf>b.x && a.y+buf<b.y+b.h && a.y+a.h-buf>b.y;
-  }
-
   function saveHighscore(){
-    const s=Math.floor(score);
+    const s = Math.floor(score);
     if(s > highscore){
       highscore = s;
       highscoreEl.textContent = highscore;
@@ -205,8 +187,23 @@ function startGame(existingHighscore=0) {
     }
   }
 
+  function resetGame(){
+    saveHighscore(); // Vor dem Reset speichern
+    obstacles = []; 
+    spawnTimer = 0; 
+    spawnInterval = 90;
+    baseSpeed = 5; 
+    speed = baseSpeed; 
+    score = 0; 
+    gameOver = false;
+    player.y = ground.y - player.h; 
+    player.vy = 0; 
+    player.grounded = true;
+  }
+
   document.getElementById('pauseBtn').addEventListener('click', ()=>{
-    paused=!paused; document.getElementById('pauseBtn').textContent=paused?"Fortsetzen":"Pause";
+    paused = !paused; 
+    document.getElementById('pauseBtn').textContent = paused ? "Fortsetzen" : "Pause";
   });
 
   document.getElementById('resetBtn').addEventListener('click', ()=>{
@@ -220,6 +217,18 @@ function startGame(existingHighscore=0) {
   window.addEventListener('keyup', e => { if(e.code==="Space") wantJump=false; });
   canvas.addEventListener('mousedown', ()=>{ wantJump=true; setTimeout(()=>wantJump=false,100); });
   canvas.addEventListener('touchstart', e=>{ e.preventDefault(); wantJump=true; setTimeout(()=>wantJump=false,150); }, {passive:false});
+
+  function randRange(a,b){return Math.random()*(b-a)+a}
+  function spawnObstacle(){
+    const h = Math.round(randRange(20, 50));
+    const w = Math.round(randRange(18, 36));
+    const y = ground.y - h;
+    obstacles.push({x: W + 20, y, w, h, passed: false, color: '#2d3436'});
+  }
+  function collides(a,b){
+    const buf=8; 
+    return a.x+buf<b.x+b.w && a.x+a.w-buf>b.x && a.y+buf<b.y+b.h && a.y+a.h-buf>b.y;
+  }
 
   function update(){
     if(paused || gameOver) return;
