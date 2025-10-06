@@ -31,9 +31,15 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+import { 
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, 
+  onAuthStateChanged, setPersistence, browserLocalPersistence 
+} from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+import { 
+  getDatabase, ref, set, get, update, onValue 
+} from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
+// --- Firebase-Konfiguration ---
 const firebaseConfig = {
   apiKey: "AIzaSyA_IPMf3X1PABrfMlrpgT0tMCTeQVnhLUs",
   authDomain: "jumpandrunhighscore.firebaseapp.com",
@@ -45,6 +51,7 @@ const firebaseConfig = {
   measurementId: "G-SJD78YNJK0"
 };
 
+// --- Initialisierung ---
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
@@ -83,6 +90,7 @@ async function registerUser() {
   const password = document.getElementById("password").value;
   const username = document.getElementById("username").value;
   if (!username) { msg.textContent = "Bitte Benutzername eingeben"; return; }
+
   try {
     await setPersistence(auth, browserLocalPersistence);
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -104,6 +112,7 @@ async function registerUser() {
 async function loginUser() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
+
   try {
     await setPersistence(auth, browserLocalPersistence);
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -127,19 +136,26 @@ async function loginUser() {
 document.getElementById("registerBtn").addEventListener("click", registerUser);
 document.getElementById("loginBtn").addEventListener("click", loginUser);
 
-// --- Auto-login ---
+// --- Auto-Login ---
 onAuthStateChanged(auth, async (user) => {
-  if (user && !currentUser) {
+  if (user) {
     currentUser = user.uid;
-    const snapshot = await get(ref(db, "users/" + currentUser));
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      currentUsername = data.username;
-      setupLeaderboardRealtime();
-      startGame(data.highscore || 0);
-      msg.style.color = "green";
-      msg.textContent = "Willkommen zurück, " + currentUsername;
+    try {
+      const snapshot = await get(ref(db, "users/" + currentUser));
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        currentUsername = data.username;
+        const dbHighscore = data.highscore || 0;
+        setupLeaderboardRealtime();
+        msg.style.color = "green";
+        msg.textContent = "Willkommen zurück, " + currentUsername;
+        startGame(dbHighscore);
+      }
+    } catch (err) {
+      console.error("Fehler beim Laden des Profils:", err);
     }
+  } else {
+    currentUser = null;
   }
 });
 
@@ -150,22 +166,25 @@ async function startGame(existingHighscore = 0) {
 
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  let W = canvas.width, H = canvas.height;
+  const W = canvas.width, H = canvas.height;
   const scoreEl = document.getElementById('score');
   const highscoreEl = document.getElementById('highscore');
   let highscore = existingHighscore;
-  highscoreEl.textContent = highscore;
 
-  // --- Highscore aus DB laden ---
+  // --- Highscore aus Datenbank laden (immer frisch) ---
   if (currentUser) {
-    const snapshot = await get(ref(db, "users/" + currentUser));
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      highscore = data.highscore || 0;
-      highscoreEl.textContent = highscore;
+    try {
+      const snapshot = await get(ref(db, "users/" + currentUser + "/highscore"));
+      if (snapshot.exists()) {
+        highscore = snapshot.val() || 0;
+      }
+    } catch (err) {
+      console.warn("Highscore konnte nicht geladen werden:", err);
     }
   }
+  highscoreEl.textContent = highscore;
 
+  // --- Setup ---
   function scaleForDPI() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = W * dpr;
@@ -182,7 +201,8 @@ async function startGame(existingHighscore = 0) {
 
   const player = { x: 120, y: 0, w: 44, h: 60, vy: 0, jumpPower: -13, grounded: false, color: '#ff6b6b', anim: 0 };
   const ground = { y: H - 80, height: 80 };
-  let obstacles = [], clouds = [], spawnTimer = 0, spawnInterval = 90;
+  let obstacles = [], clouds = [];
+  let spawnTimer = 0, spawnInterval = 90;
   let baseSpeed = 5, speed = baseSpeed;
   let wantJump = false, frame = 0;
 
@@ -193,7 +213,7 @@ async function startGame(existingHighscore = 0) {
       highscoreEl.textContent = highscore;
       if (currentUser) {
         try {
-          await update(ref(db, "users/" + currentUser), { highscore: highscore });
+          await update(ref(db, "users/" + currentUser), { highscore });
         } catch (err) {
           console.error("Fehler beim Speichern des Highscores:", err);
         }
@@ -206,9 +226,7 @@ async function startGame(existingHighscore = 0) {
     obstacles = [];
     clouds = [];
     spawnTimer = 0;
-    spawnInterval = 90;
     baseSpeed = 5;
-    speed = baseSpeed;
     score = 0;
     gameOver = false;
     player.y = ground.y - player.h;
@@ -221,7 +239,7 @@ async function startGame(existingHighscore = 0) {
     document.getElementById('pauseBtn').textContent = paused ? "Fortsetzen" : "Pause";
   });
 
-  document.getElementById('resetBtn').addEventListener('click', () => resetGame());
+  document.getElementById('resetBtn').addEventListener('click', resetGame);
 
   window.addEventListener('keydown', e => {
     if (e.code === "Space") wantJump = true;
@@ -291,24 +309,19 @@ async function startGame(existingHighscore = 0) {
   function draw() {
     ctx.clearRect(0, 0, W, H);
 
-    // Hintergrund
     ctx.fillStyle = "#87CEEB";
     ctx.fillRect(0, 0, W, H);
 
-    // Wolken
     ctx.fillStyle = "white";
     for (const c of clouds) ctx.fillRect(c.x, c.y, c.w, c.h);
 
-    // Boden
     ctx.fillStyle = "#4CAF50";
     ctx.fillRect(0, ground.y, W, ground.height);
 
-    // Spieler Animation
     const offsetY = Math.sin(player.anim) * 2;
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y + offsetY, player.w, player.h);
 
-    // Hindernisse
     for (const ob of obstacles) {
       ctx.fillStyle = ob.color;
       ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
@@ -332,4 +345,5 @@ async function startGame(existingHighscore = 0) {
 </script>
 </body>
 </html>
+
 
