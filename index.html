@@ -14,34 +14,32 @@
     <input id="username" placeholder="Benutzername (nur bei Registrierung)"><br>
     <button id="registerBtn">Registrieren</button>
     <button id="loginBtn">Login</button>
-    <div id="authMessage" style="color:red; font-weight:bold; margin-top:10px;"></div>
+    <div id="authMessage"></div>
   </div>
 
-  <div id="gameWrap" style="display:none;">
+  <div id="gameWrap">
     <canvas id="game" width="900" height="420"></canvas>
-<div class="hud">
-  <div class="panel">Score: <span id="score">0</span></div>
-  <div class="panel">Highscore: <span id="highscore">0</span></div>
-  <div class="panel">Online: <span id="onlineCount">0</span></div>
-  <div class="panel" id="leaderboard">Highscores werden geladen...</div>
-  <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
-</div>
 
-<div class="game-buttons">
-  <button id="pauseBtn">Pause</button>
-  <button id="resetBtn">Neustart</button>
-</div>
+    <div class="hud">
+      <div class="panel">Score: <span id="score">0</span></div>
+      <div class="panel">Highscore: <span id="highscore">0</span></div>
+      <div class="panel">Online: <span id="onlineCount">0</span></div>
+      <div class="panel" id="leaderboard">Highscores werden geladen...</div>
+      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
+    </div>
 
-<!-- Chatbox bleibt darunter -->
-      <!-- Chatbox -->
-      <div id="chatBox">
-        <div style="padding:8px; border-bottom:1px solid #eee; font-weight:600;">Spielerchat</div>
-        <div id="messages">Verbinde...</div>
-        <form id="messageForm">
-          <input id="messageInput" placeholder="Nachricht eingeben..." autocomplete="off">
-          <button id="sendBtn" type="submit">Senden</button>
-        </form>
-      </div>
+    <div class="game-buttons">
+      <button id="pauseBtn">Pause</button>
+      <button id="resetBtn">Neustart</button>
+    </div>
+
+    <div id="chatBox">
+      <div class="chat-header">Spielerchat</div>
+      <div id="messages">Verbinde...</div>
+      <form id="messageForm">
+        <input id="messageInput" placeholder="Nachricht eingeben..." autocomplete="off">
+        <button id="sendBtn" type="submit">Senden</button>
+      </form>
     </div>
   </div>
 
@@ -62,7 +60,7 @@ const firebaseConfig = {
   authDomain: "jumpandrunhighscore.firebaseapp.com",
   databaseURL: "https://jumpandrunhighscore-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "jumpandrunhighscore",
-  storageBucket: "jumpandrunhighscore.firebasestorage.app",
+  storageBucket: "jumpandrunhighscore.appspot.com",
   messagingSenderId: "770421489723",
   appId: "1:770421489723:web:8bc433474dae3d7d5edc1e",
   measurementId: "G-SJD78YNJK0"
@@ -107,62 +105,30 @@ let presenceListenerUnsub = null;
 function setupPresence(uid) {
   try {
     const myPresenceRef = ref(db, "presence/" + uid);
-    // Setze presence true und entferne es bei disconnect
     set(myPresenceRef, { uid, ts: Date.now() }).catch(()=>{});
     onDisconnect(myPresenceRef).remove();
 
-    // Listener für alle Präsenz-Einträge -> Online Count
     const presenceRoot = ref(db, "presence");
-    if (presenceListenerUnsub) {
-      // keine direkte unsubscribe für onValue in modular API, wir verwenden onValue und es ersetzt nicht vorherige
-    }
     onValue(presenceRoot, snap => {
       if (!snap.exists()) { onlineCountEl.textContent = "0"; return; }
-      const data = snap.val();
-      const count = Object.keys(data).length;
-      onlineCountEl.textContent = String(count);
+      onlineCountEl.textContent = String(Object.keys(snap.val()).length);
     });
-  } catch(e) {
-    console.warn("Presence setup failed", e);
-  }
+  } catch(e) { console.warn("Presence setup failed", e); }
 }
 
 // --- Chat ---
 function setupChat() {
-  messagesEl.innerHTML = ""; // leeren
+  messagesEl.innerHTML = "";
   const chatQuery = query(ref(db, "chat"), orderByChild("ts"), limitToLast(100));
-  // benutze onChildAdded, um neue Nachrichten sofort anzuhängen
-  onChildAdded(chatQuery, snap => {
-    const m = snap.val();
-    appendMessage(m);
-  });
+  onChildAdded(chatQuery, snap => appendMessage(snap.val()));
 
   messageForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = messageInput.value.trim();
-    if (!text) return;
-    if (!currentUser) {
-      alert("Bitte einloggen, um zu chatten.");
-      return;
-    }
-    const msgObj = {
-      uid: currentUser,
-      username: currentUsername || "Spieler",
-      text,
-      ts: Date.now()
-    };
-    try {
-      await push(ref(db, "chat"), msgObj);
-      messageInput.value = "";
-    } catch (err) {
-      console.error("Chat senden fehlgeschlagen", err);
-    }
-  });
-
-  messageInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      // Standardverhalten wird durch submit handler abgefangen
-    }
+    if (!text || !currentUser) return;
+    const msgObj = { uid: currentUser, username: currentUsername || "Spieler", text, ts: Date.now() };
+    try { await push(ref(db, "chat"), msgObj); messageInput.value=""; }
+    catch(err){ console.error("Chat senden fehlgeschlagen", err); }
   });
 }
 
@@ -172,17 +138,13 @@ function appendMessage(m) {
   const mm = String(time.getMinutes()).padStart(2,'0');
   const me = m.uid === currentUser;
   const div = document.createElement("div");
-  div.style.padding = "6px 8px";
-  div.style.marginBottom = "6px";
-  div.style.borderRadius = "6px";
-  div.style.background = me ? "#e0f2fe" : "#f1f5f9";
-  div.innerHTML = `<div style="font-size:12px;color:#374151;"><strong>${escapeHtml(m.username||'Spieler')}</strong> <span style="font-size:11px;color:#6b7280"> ${hh}:${mm}</span></div>
-                   <div style="margin-top:4px;font-size:14px;color:#0f172a;">${escapeHtml(m.text)}</div>`;
+  div.className = me ? "chat-message me" : "chat-message";
+  div.innerHTML = `<div class="chat-meta"><strong>${escapeHtml(m.username||'Spieler')}</strong> <span>${hh}:${mm}</span></div>
+                   <div class="chat-text">${escapeHtml(m.text)}</div>`;
   messagesEl.appendChild(div);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// safe escape
 function escapeHtml(s){ if(!s) return ""; return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'", "&#39;"); }
 
 // --- Registrierung ---
@@ -266,7 +228,6 @@ function startGame(existingHighscore = 0){
   function spawnObstacle(){ const h=rand(20,50), w=rand(18,36), y=ground.y-h; obstacles.push({x:W+20,y,w,h,color:"#2d3436",passed:false}); }
   function spawnCloud(){ const y=rand(30,150), w=rand(60,120); clouds.push({x:W+50,y,w,h:30,speed:rand(0.7,2)}); }
 
-  // --- Neue Funktion: fliegende Hindernisse ---
   function spawnFlyingObstacle() {
     const h = rand(20, 40);
     const w = rand(20, 40);
@@ -278,7 +239,6 @@ function startGame(existingHighscore = 0){
 
   function resetGame(){ saveHighscoreLocal(); obstacles=[]; clouds=[]; spawnTimer=0; speed=5; score=0; frame=0; gameOver=false; player.y=ground.y-player.h; player.vy=0; player.grounded=true; scoreEl.textContent=0; }
 
-  // Controls
   window.addEventListener("keydown", e=>{ if(e.code==="Space") wantJump=true; if(e.key==="r"&&gameOver) resetGame(); });
   window.addEventListener("keyup", e=>{ if(e.code==="Space") wantJump=false; });
   canvas.addEventListener("mousedown",()=>{ wantJump=true; setTimeout(()=>wantJump=false,120); });
@@ -289,19 +249,14 @@ function startGame(existingHighscore = 0){
   function update(){
     if(paused||gameOver) return;
     frame++; if(frame%300===0)speed+=0.3;
-
     if(wantJump && player.grounded){ player.vy=player.jumpPower; player.grounded=false; }
     player.vy+=0.7; player.y+=player.vy; player.anim+=0.2;
     if(player.y+player.h>=ground.y){ player.y=ground.y-player.h; player.vy=0; player.grounded=true; }
 
     spawnTimer++;
     if (spawnTimer >= 90) {
-      // Ab Score 500 Chance auf fliegende Blöcke
-      if (score >= 500 && Math.random() < 0.4) {
-        spawnFlyingObstacle();
-      } else {
-        spawnObstacle();
-      }
+      if (score >= 500 && Math.random() < 0.4) spawnFlyingObstacle();
+      else spawnObstacle();
       spawnTimer = 0;
     }
     if(frame%200===0) spawnCloud();
@@ -310,9 +265,7 @@ function startGame(existingHighscore = 0){
 
     obstacles.forEach(o=>{
       o.x -= speed;
-      if(o.flying){
-        o.y = o.baseY + Math.sin(frame*0.05 + o.animOffset)*10; // sanftes Auf und Ab
-      }
+      if(o.flying) o.y = o.baseY + Math.sin(frame*0.05 + o.animOffset)*10;
       if(!o.passed && o.x+o.w<player.x){ o.passed=true; score+=10; }
     });
 
@@ -328,11 +281,7 @@ function startGame(existingHighscore = 0){
     ctx.fillStyle="white"; clouds.forEach(c=>ctx.fillRect(c.x,c.y,c.w,c.h));
     ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,W,ground.height);
     ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y+Math.sin(player.anim)*2,player.w,player.h);
-
-    obstacles.forEach(o=>{
-      ctx.fillStyle = o.flying ? o.color : "#2d3436";
-      ctx.fillRect(o.x, o.y, o.w, o.h);
-    });
+    obstacles.forEach(o=>{ ctx.fillStyle = o.flying ? o.color : "#2d3436"; ctx.fillRect(o.x, o.y, o.w, o.h); });
 
     if(gameOver){ ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H); ctx.fillStyle="white"; ctx.font="bold 36px system-ui"; ctx.textAlign="center"; ctx.fillText("Game Over",W/2,H/2); }
   }
@@ -344,3 +293,4 @@ function startGame(existingHighscore = 0){
 </script>
 </body>
 </html>
+
