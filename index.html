@@ -19,18 +19,20 @@
 
   <div id="gameWrap" style="display:none;">
     <canvas id="game" width="900" height="420"></canvas>
+<div class="hud">
+  <div class="panel">Score: <span id="score">0</span></div>
+  <div class="panel">Highscore: <span id="highscore">0</span></div>
+  <div class="panel">Online: <span id="onlineCount">0</span></div>
+  <div class="panel" id="leaderboard">Highscores werden geladen...</div>
+  <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
+</div>
 
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <div class="hud">
-        <div class="panel">Score: <span id="score">0</span></div>
-        <div class="panel">Highscore: <span id="highscore">0</span></div>
-        <div class="panel">Online: <span id="onlineCount">0</span></div>
-        <div class="panel" id="leaderboard">Highscores werden geladen...</div>
-        <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
-        <button id="pauseBtn">Pause</button>
-        <button id="resetBtn">Neustart</button>
-      </div>
+<div class="game-buttons">
+  <button id="pauseBtn">Pause</button>
+  <button id="resetBtn">Neustart</button>
+</div>
 
+<!-- Chatbox bleibt darunter -->
       <!-- Chatbox -->
       <div id="chatBox">
         <div style="padding:8px; border-bottom:1px solid #eee; font-weight:600;">Spielerchat</div>
