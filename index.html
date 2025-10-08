@@ -160,6 +160,14 @@ function startGame(existingHighscore = 0){
   function spawnObstacle(){ const h=rand(20,50), w=rand(18,36), y=ground.y-h; obstacles.push({x:W+20,y,w,h,color:"#2d3436",passed:false}); }
   function spawnCloud(){ const y=rand(30,150), w=rand(60,120); clouds.push({x:W+50,y,w,h:30,speed:rand(0.7,2)}); }
 
+  // --- Neue Funktion: fliegende Hindernisse ---
+  function spawnFlyingObstacle() {
+    const h = rand(20, 40);
+    const w = rand(20, 40);
+    const baseY = rand(ground.y - 200, ground.y - 100);
+    obstacles.push({ x: W + 20, y: baseY, baseY, w, h, color: "#ffb703", passed: false, flying: true, animOffset: rand(0, Math.PI * 2) });
+  }
+
   function collides(a,b){ const buf=8; return a.x+buf<b.x+b.w && a.x+a.w-buf>b.x && a.y+buf<b.y+b.h && a.y+a.h-buf>b.y; }
 
   function resetGame(){ saveHighscoreLocal(); obstacles=[]; clouds=[]; spawnTimer=0; speed=5; score=0; frame=0; gameOver=false; player.y=ground.y-player.h; player.vy=0; player.grounded=true; scoreEl.textContent=0; }
@@ -175,14 +183,33 @@ function startGame(existingHighscore = 0){
   function update(){
     if(paused||gameOver) return;
     frame++; if(frame%300===0)speed+=0.3;
+
     if(wantJump && player.grounded){ player.vy=player.jumpPower; player.grounded=false; }
     player.vy+=0.7; player.y+=player.vy; player.anim+=0.2;
     if(player.y+player.h>=ground.y){ player.y=ground.y-player.h; player.vy=0; player.grounded=true; }
-    spawnTimer++; if(spawnTimer>=90){ spawnObstacle(); spawnTimer=0; }
+
+    spawnTimer++;
+    if (spawnTimer >= 90) {
+      // Ab Score 500 Chance auf fliegende Blöcke
+      if (score >= 500 && Math.random() < 0.4) {
+        spawnFlyingObstacle();
+      } else {
+        spawnObstacle();
+      }
+      spawnTimer = 0;
+    }
     if(frame%200===0) spawnCloud();
 
     clouds.forEach(c=>c.x-=c.speed); clouds=clouds.filter(c=>c.x+c.w>-50);
-    obstacles.forEach(o=>{ o.x-=speed; if(!o.passed && o.x+o.w<player.x){ o.passed=true; score+=10; } });
+
+    obstacles.forEach(o=>{
+      o.x -= speed;
+      if(o.flying){
+        o.y = o.baseY + Math.sin(frame*0.05 + o.animOffset)*10; // sanftes Auf und Ab
+      }
+      if(!o.passed && o.x+o.w<player.x){ o.passed=true; score+=10; }
+    });
+
     obstacles=obstacles.filter(o=>o.x+o.w>-50);
     obstacles.forEach(o=>{ if(collides(player,o)){ gameOver=true; saveHighscoreLocal(); } });
     score+=0.02*speed; scoreEl.textContent=Math.floor(score);
@@ -195,7 +222,12 @@ function startGame(existingHighscore = 0){
     ctx.fillStyle="white"; clouds.forEach(c=>ctx.fillRect(c.x,c.y,c.w,c.h));
     ctx.fillStyle="#4CAF50"; ctx.fillRect(0,ground.y,W,ground.height);
     ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y+Math.sin(player.anim)*2,player.w,player.h);
-    obstacles.forEach(o=>{ ctx.fillStyle=o.color; ctx.fillRect(o.x,o.y,o.w,o.h); });
+
+    obstacles.forEach(o=>{
+      ctx.fillStyle = o.flying ? o.color : "#2d3436";
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+    });
+
     if(gameOver){ ctx.fillStyle="rgba(0,0,0,0.6)"; ctx.fillRect(0,0,W,H); ctx.fillStyle="white"; ctx.font="bold 36px system-ui"; ctx.textAlign="center"; ctx.fillText("Game Over",W/2,H/2); }
   }
 
@@ -206,4 +238,3 @@ function startGame(existingHighscore = 0){
 </script>
 </body>
 </html>
-
