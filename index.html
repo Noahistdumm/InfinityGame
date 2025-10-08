@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Unendliches Jump & Run</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Minimalstyles für Chat/HUD, passe gerne dein style.css an */
+    body { font-family: system-ui, sans-serif; margin:0; padding:8px; background:#f3f4f6; }
+    #gameWrap { display:none; gap:12px; align-items:flex-start; }
+    .hud { display:flex; flex-direction:row; gap:10px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+    .panel { background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    #chatBox { width:320px; max-height:420px; display:flex; flex-direction:column; background:#fff; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); overflow:hidden; }
+    #messages { padding:10px; overflow:auto; flex:1; font-size:14px; }
+    #messageForm { display:flex; gap:6px; padding:8px; border-top:1px solid #eee; }
+    #messageInput { flex:1; padding:8px; border-radius:6px; border:1px solid #ddd; }
+    #sendBtn { padding:8px 12px; border-radius:6px; border: none; cursor:pointer; background:#2563eb; color:white; }
+    #leaderboard { max-width:240px; word-break:break-word; }
+    canvas { background:#87CEEB; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.12); }
+    .hud .controls { font-size:13px; color:#333; }
+  </style>
 </head>
 <body>
   <div id="authSection">
@@ -19,13 +34,27 @@
 
   <div id="gameWrap" style="display:none;">
     <canvas id="game" width="900" height="420"></canvas>
-    <div class="hud">
-      <div class="panel">Score: <span id="score">0</span></div>
-      <div class="panel">Highscore: <span id="highscore">0</span></div>
-      <div class="panel" id="leaderboard">Highscores werden geladen...</div>
-      <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
-      <button id="pauseBtn">Pause</button>
-      <button id="resetBtn">Neustart</button>
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div class="hud">
+        <div class="panel">Score: <span id="score">0</span></div>
+        <div class="panel">Highscore: <span id="highscore">0</span></div>
+        <div class="panel">Online: <span id="onlineCount">0</span></div>
+        <div class="panel" id="leaderboard">Highscores werden geladen...</div>
+        <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
+        <button id="pauseBtn">Pause</button>
+        <button id="resetBtn">Neustart</button>
+      </div>
+
+      <!-- Chatbox -->
+      <div id="chatBox">
+        <div style="padding:8px; border-bottom:1px solid #eee; font-weight:600;">Spielerchat</div>
+        <div id="messages">Verbinde...</div>
+        <form id="messageForm">
+          <input id="messageInput" placeholder="Nachricht eingeben..." autocomplete="off">
+          <button id="sendBtn" type="submit">Senden</button>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -36,7 +65,8 @@ import {
   onAuthStateChanged, setPersistence, browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import {
-  getDatabase, ref, set, get, onValue, runTransaction
+  getDatabase, ref, set, get, onValue, runTransaction,
+  push, onChildAdded, query, limitToLast, orderByChild, onDisconnect
 } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
 // --- Firebase-Konfiguration ---
@@ -62,6 +92,10 @@ let currentUsername = "";
 const msg = document.getElementById("authMessage");
 const gameWrap = document.getElementById("gameWrap");
 const authSection = document.getElementById("authSection");
+const onlineCountEl = document.getElementById("onlineCount");
+const messagesEl = document.getElementById("messages");
+const messageForm = document.getElementById("messageForm");
+const messageInput = document.getElementById("messageInput");
 
 // --- Leaderboard ---
 function setupLeaderboardRealtime() {
@@ -80,6 +114,89 @@ function setupLeaderboardRealtime() {
     ).join("<br>");
   });
 }
+
+// --- Präsenz (Online-Zähler) ---
+let presenceListenerUnsub = null;
+function setupPresence(uid) {
+  try {
+    const myPresenceRef = ref(db, "presence/" + uid);
+    // Setze presence true und entferne es bei disconnect
+    set(myPresenceRef, { uid, ts: Date.now() }).catch(()=>{});
+    onDisconnect(myPresenceRef).remove();
+
+    // Listener für alle Präsenz-Einträge -> Online Count
+    const presenceRoot = ref(db, "presence");
+    if (presenceListenerUnsub) {
+      // keine direkte unsubscribe für onValue in modular API, wir verwenden onValue und es ersetzt nicht vorherige
+    }
+    onValue(presenceRoot, snap => {
+      if (!snap.exists()) { onlineCountEl.textContent = "0"; return; }
+      const data = snap.val();
+      const count = Object.keys(data).length;
+      onlineCountEl.textContent = String(count);
+    });
+  } catch(e) {
+    console.warn("Presence setup failed", e);
+  }
+}
+
+// --- Chat ---
+function setupChat() {
+  messagesEl.innerHTML = ""; // leeren
+  const chatQuery = query(ref(db, "chat"), orderByChild("ts"), limitToLast(100));
+  // benutze onChildAdded, um neue Nachrichten sofort anzuhängen
+  onChildAdded(chatQuery, snap => {
+    const m = snap.val();
+    appendMessage(m);
+  });
+
+  messageForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const text = messageInput.value.trim();
+    if (!text) return;
+    if (!currentUser) {
+      alert("Bitte einloggen, um zu chatten.");
+      return;
+    }
+    const msgObj = {
+      uid: currentUser,
+      username: currentUsername || "Spieler",
+      text,
+      ts: Date.now()
+    };
+    try {
+      await push(ref(db, "chat"), msgObj);
+      messageInput.value = "";
+    } catch (err) {
+      console.error("Chat senden fehlgeschlagen", err);
+    }
+  });
+
+  messageInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      // Standardverhalten wird durch submit handler abgefangen
+    }
+  });
+}
+
+function appendMessage(m) {
+  const time = new Date(m.ts || Date.now());
+  const hh = String(time.getHours()).padStart(2,'0');
+  const mm = String(time.getMinutes()).padStart(2,'0');
+  const me = m.uid === currentUser;
+  const div = document.createElement("div");
+  div.style.padding = "6px 8px";
+  div.style.marginBottom = "6px";
+  div.style.borderRadius = "6px";
+  div.style.background = me ? "#e0f2fe" : "#f1f5f9";
+  div.innerHTML = `<div style="font-size:12px;color:#374151;"><strong>${escapeHtml(m.username||'Spieler')}</strong> <span style="font-size:11px;color:#6b7280"> ${hh}:${mm}</span></div>
+                   <div style="margin-top:4px;font-size:14px;color:#0f172a;">${escapeHtml(m.text)}</div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// safe escape
+function escapeHtml(s){ if(!s) return ""; return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'", "&#39;"); }
 
 // --- Registrierung ---
 async function registerUser() {
@@ -115,9 +232,11 @@ onAuthStateChanged(auth, async user=>{
   try {
     const snap = await get(ref(db,"users/"+currentUser));
     let dbHighscore = 0;
-    if(snap.exists()){ const data = snap.val(); currentUsername = data.username; dbHighscore = data.highscore || 0; }
-    else{ await set(ref(db,"users/"+currentUser),{username:"Spieler",highscore:0}); }
+    if(snap.exists()){ const data = snap.val(); currentUsername = data.username || "Spieler"; dbHighscore = data.highscore || 0; }
+    else{ currentUsername = "Spieler"; await set(ref(db,"users/"+currentUser),{username:currentUsername,highscore:0}); }
     setupLeaderboardRealtime();
+    setupPresence(currentUser);
+    setupChat();
     msg.style.color="green"; msg.textContent="Willkommen zurück, "+currentUsername;
     startGame(dbHighscore);
   } catch(e){ console.error(e); startGame(0); }
