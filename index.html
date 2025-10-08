@@ -18,7 +18,14 @@
   </div>
 
   <div id="gameWrap">
-    <canvas id="game" width="900" height="420"></canvas>
+    <!-- Container für Canvas + Buttons -->
+    <div class="game-container">
+      <canvas id="game" width="900" height="420"></canvas>
+      <div class="game-buttons-vertical">
+        <button id="pauseBtn">Pause</button>
+        <button id="resetBtn">Neustart</button>
+      </div>
+    </div>
 
     <div class="hud">
       <div class="panel">Score: <span id="score">0</span></div>
@@ -26,11 +33,6 @@
       <div class="panel">Online: <span id="onlineCount">0</span></div>
       <div class="panel" id="leaderboard">Highscores werden geladen...</div>
       <div class="controls">Tasten: Leertaste / Klick / Tippen zum Springen</div>
-    </div>
-
-    <div class="game-buttons">
-      <button id="pauseBtn">Pause</button>
-      <button id="resetBtn">Neustart</button>
     </div>
 
     <div id="chatBox">
@@ -42,7 +44,6 @@
       </form>
     </div>
   </div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
 import {
